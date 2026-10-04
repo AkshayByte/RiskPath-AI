@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "riskpath-ai"
+version = "0.1.0"
+description = "Graph-based cybersecurity analytics platform for context-aware vulnerability prioritization, multi-hop attack path discovery, what-if remediation simulation, and budget optimization."
+readme = "README.md"
+authors = [{ name = "AkshayByte", email = "akshayyadavji8@gmail.com" }]
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.30",
+    "networkx>=3.4.0",
+    "uvicorn>=0.32.0",
+    "alembic>=1.14.0",
+    "groq>=0.11.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "httpx>=0.28.0",
+    "hypothesis>=6.120.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning:fastapi.*",
+    "ignore::DeprecationWarning:starlette.*",
+]

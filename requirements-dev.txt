@@ -1,0 +1,6 @@
+-r requirements.txt
+# Development, testing, and property-based verification dependencies
+pytest>=8.3.0
+httpx>=0.28.0
+hypothesis>=6.120.0
+pytest-asyncio>=0.24.0
