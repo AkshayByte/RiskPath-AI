@@ -25,6 +25,14 @@ from backend.app.routers.generator import router as generator_router
 from backend.app.routers.importers import router as importers_router
 
 
+# Create database tables and ensure seed data on import and startup
+Base.metadata.create_all(bind=engine)
+try:
+    create_seed_data()
+except Exception as e:
+    pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
