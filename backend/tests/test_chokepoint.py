@@ -4,9 +4,9 @@ import networkx as nx
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
 from backend.app.analysis import chokepoint
 from backend.app.analysis.chokepoint import compute_chokepoints
+from backend.app.main import app
 
 
 def make_graph(*nodes):
@@ -136,17 +136,13 @@ def test_chokepoint_converging_paths(monkeypatch):
     expected_converging = expected_single * 2
 
     assert c.path_count == 2
-    assert c.path_feasibility_criticality == pytest.approx(
-        expected_converging
-    )
+    assert c.path_feasibility_criticality == pytest.approx(expected_converging)
     assert c.chokepoint_score == pytest.approx(1.0)
 
     assert entry.path_count == 2
     assert crown.path_count == 2
 
-    assert entry.path_feasibility_criticality == pytest.approx(
-        expected_converging
-    )
+    assert entry.path_feasibility_criticality == pytest.approx(expected_converging)
 
 
 def test_chokepoint_feasibility_vs_count(monkeypatch):
@@ -332,9 +328,7 @@ def test_chokepoint_zero_cost(monkeypatch):
 
     app = get_result(result, "app")
 
-    assert app.path_feasibility_criticality == pytest.approx(
-        0.5 / 1e-9
-    )
+    assert app.path_feasibility_criticality == pytest.approx(0.5 / 1e-9)
 
     assert app.chokepoint_score == pytest.approx(1.0)
     assert app.path_feasibility_criticality != float("inf")
@@ -566,11 +560,7 @@ def test_chokepoint_max_depth_limit(monkeypatch):
     ]
 
     def limited_paths(graph, max_depth=10, max_paths=100):
-        return [
-            path
-            for path in paths
-            if path.hop_count <= max_depth
-        ][:max_paths]
+        return [path for path in paths if path.hop_count <= max_depth][:max_paths]
 
     monkeypatch.setattr(
         chokepoint,
@@ -662,15 +652,9 @@ def test_chokepoint_entity_type_filter(monkeypatch):
         entity_types="all",
     )
 
-    assert all(
-        item.entity_type == "asset"
-        for item in asset_result.chokepoints
-    )
+    assert all(item.entity_type == "asset" for item in asset_result.chokepoints)
 
-    assert all(
-        item.entity_type == "finding"
-        for item in finding_result.chokepoints
-    )
+    assert all(item.entity_type == "finding" for item in finding_result.chokepoints)
 
     types = {item.entity_type for item in all_result.chokepoints}
 
@@ -823,11 +807,7 @@ def test_chokepoint_same_score_sorted_by_entity_id(monkeypatch):
 
     # All entities have equal feasibility, so tie-breaking
     # must use entity_id ascending.
-    scored_ids = [
-        item.entity_id
-        for item in result.chokepoints
-        if item.entity_id != "entry"
-    ]
+    scored_ids = [item.entity_id for item in result.chokepoints if item.entity_id != "entry"]
 
     assert scored_ids == ["alpha", "beta", "zeta"]
 
@@ -847,7 +827,7 @@ class TestChokepointAPI:
         )
         assert response.status_code == 200
         data = response.json()
-        
+
         # Verify required fields
         assert "chokepoints" in data
         assert "total_entities_analyzed" in data
@@ -855,11 +835,11 @@ class TestChokepointAPI:
         assert "total_attack_paths_analyzed" in data
         assert "max_depth_used" in data
         assert "max_paths_used" in data
-        
+
         # Verify chokepoint structure
         assert isinstance(data["chokepoints"], list)
         assert len(data["chokepoints"]) > 0
-        
+
         for chokepoint in data["chokepoints"]:
             assert "entity_id" in chokepoint
             assert "entity_type" in chokepoint
@@ -870,7 +850,7 @@ class TestChokepointAPI:
             assert "unique_crown_jewels" in chokepoint
             assert "min_path_depth" in chokepoint
             assert "max_path_depth" in chokepoint
-            
+
             assert chokepoint["entity_type"] in ("asset", "finding")
             assert 0.0 <= chokepoint["chokepoint_score"] <= 1.0
             assert chokepoint["path_feasibility_criticality"] >= 0.0
@@ -977,14 +957,14 @@ class TestChokepointAPI:
         )
         assert response_all.status_code == 200
         all_chokepoints = response_all.json()["chokepoints"]
-        
+
         # Get max score
         if not all_chokepoints:
             pytest.skip("No chokepoints found")
-        
+
         max_score = max(cp["chokepoint_score"] for cp in all_chokepoints)
         mid_score = max_score / 2.0
-        
+
         # Filter with mid_score
         response_filtered = client.get(
             "/api/scenarios/basic_test_scenario/chokepoints",
@@ -992,11 +972,11 @@ class TestChokepointAPI:
         )
         assert response_filtered.status_code == 200
         filtered = response_filtered.json()["chokepoints"]
-        
+
         # All returned should have score >= mid_score
         for cp in filtered:
             assert cp["chokepoint_score"] >= mid_score - 1e-9
-        
+
         # Filtered should be subset of all
         assert len(filtered) <= len(all_chokepoints)
 
@@ -1018,7 +998,7 @@ class TestChokepointAPI:
         )
         assert response.status_code == 200
         data = response.json()
-        
+
         scores = [cp["chokepoint_score"] for cp in data["chokepoints"]]
         # Should be in descending order
         assert scores == sorted(scores, reverse=True)
@@ -1030,7 +1010,7 @@ class TestChokepointAPI:
         )
         assert response.status_code == 200
         data = response.json()
-        
+
         # Required top-level fields
         required_fields = {
             "chokepoints",
@@ -1041,7 +1021,7 @@ class TestChokepointAPI:
             "max_paths_used",
         }
         assert set(data.keys()) == required_fields
-        
+
         # Types
         assert isinstance(data["chokepoints"], list)
         assert isinstance(data["total_entities_analyzed"], int)
@@ -1049,10 +1029,10 @@ class TestChokepointAPI:
         assert isinstance(data["total_attack_paths_analyzed"], int)
         assert isinstance(data["max_depth_used"], int)
         assert isinstance(data["max_paths_used"], int)
-        
+
         # Score bounds
         assert 0.0 <= data["max_chokepoint_score"] <= 1.0
-        
+
         # Chokepoint detail fields
         for cp in data["chokepoints"]:
             assert isinstance(cp["entity_id"], str)
@@ -1072,7 +1052,7 @@ class TestChokepointAPI:
             assert isinstance(cp["max_path_depth"], int)
             assert cp["max_path_depth"] >= 0
             assert cp["min_path_depth"] <= cp["max_path_depth"]
-        
+
         # Deterministic ordering: score desc, then entity_id
         scores = [cp["chokepoint_score"] for cp in data["chokepoints"]]
         assert scores == sorted(scores, reverse=True)
@@ -1105,7 +1085,7 @@ class TestChokepointAPI:
         )
         assert response.status_code == 200
         data = response.json()
-        
+
         scores = [cp["chokepoint_score"] for cp in data["chokepoints"]]
         # Should be in descending order
         assert scores == sorted(scores, reverse=True)

@@ -1,12 +1,14 @@
 """Context-aware prioritization router."""
-from typing import Literal, Optional
+
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis.prioritization import OrderingPolicy, compute_prioritization
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import Scenario
 from backend.app.schemas.prioritization import PrioritizationResponse
 
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/prioritization", tags=["Prioritization"])
@@ -18,7 +20,7 @@ def get_prioritization(
     max_depth: int = 10,
     max_paths: int = 100,
     min_operational_score: float = 0.0,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     sort_by: Literal[
         "operational_rank",
         "chokepoint_score",
@@ -92,11 +94,7 @@ def get_prioritization(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     total_findings = len(all_results)
-    results = [
-        result
-        for result in all_results
-        if result.operational_score >= min_operational_score
-    ]
+    results = [result for result in all_results if result.operational_score >= min_operational_score]
 
     if sort_by != "operational_rank":
         sort_keys = {

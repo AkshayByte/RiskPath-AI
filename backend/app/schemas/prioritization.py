@@ -1,17 +1,18 @@
 """
 Pydantic response schemas for contextual prioritization.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional, Tuple
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class VulnerabilityEvidenceResponse(BaseModel):
     cvss_normalized: float = Field(..., ge=0.0, le=1.0)
-    epss_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    epss_score: float | None = Field(None, ge=0.0, le=1.0)
     known_exploited: bool
     severity_category: Literal["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
 
@@ -31,7 +32,7 @@ class EnvironmentalEvidenceResponse(BaseModel):
     asset_criticality_normalized: float = Field(..., ge=0.0, le=1.0)
     is_entry_point: bool
     is_crown_jewel: bool
-    network_zone: Optional[str] = None
+    network_zone: str | None = None
     blast_radius_assets: int = Field(..., ge=0)
     blast_radius_crown_jewels: int = Field(..., ge=0)
     blast_radius_max_depth: int = Field(..., ge=0)
@@ -50,9 +51,9 @@ class ChokepointEvidenceResponse(BaseModel):
 
 class RemediationEvidenceResponse(BaseModel):
     remediation_cost: float = Field(..., ge=0.0)
-    implementation_complexity: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = None
+    implementation_complexity: Literal["LOW", "MEDIUM", "HIGH"] | None = None
     downtime_required: bool
-    action_type: Optional[str] = None
+    action_type: str | None = None
 
 
 class EvidenceBreakdownResponse(BaseModel):
@@ -71,7 +72,7 @@ class PriorityProfileResponse(BaseModel):
     vulnerability_id: str
 
     cvss_normalized: float = Field(..., ge=0.0, le=1.0)
-    epss_score: Optional[float] = Field(None, ge=0.0, le=1.0)
+    epss_score: float | None = Field(None, ge=0.0, le=1.0)
     epss_available: bool
     known_exploited: bool
     severity_category: Literal["NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -89,7 +90,7 @@ class PriorityProfileResponse(BaseModel):
     asset_criticality_normalized: float = Field(..., ge=0.0, le=1.0)
     is_entry_point: bool
     is_crown_jewel: bool
-    network_zone: Optional[str] = None
+    network_zone: str | None = None
     blast_radius_asset_count: int = Field(..., ge=0)
     blast_radius_crown_jewels: int = Field(..., ge=0)
     blast_radius_max_depth: int = Field(..., ge=0)
@@ -104,14 +105,14 @@ class PriorityProfileResponse(BaseModel):
     asset_path_count: int = Field(..., ge=0)
 
     remediation_cost: float = Field(..., ge=0.0)
-    implementation_complexity: Optional[Literal["LOW", "MEDIUM", "HIGH"]] = None
+    implementation_complexity: Literal["LOW", "MEDIUM", "HIGH"] | None = None
     downtime_required: bool
-    action_type: Optional[str] = None
-    baseline_is_entry_point: Optional[bool] = None
+    action_type: str | None = None
+    baseline_is_entry_point: bool | None = None
 
 
 class OrderingKeysResponse(BaseModel):
-    tiers: Tuple[int, ...]
+    tiers: tuple[int, ...]
     composite_score: float = Field(..., ge=0.0)
     tiebreaker: str
     finding_id: str
@@ -155,4 +156,4 @@ class PrioritizationResponse(BaseModel):
         "asset_criticality",
     ]
     policy: OrderingPolicyResponse
-    items: List[PrioritizationResultResponse]
+    items: list[PrioritizationResultResponse]

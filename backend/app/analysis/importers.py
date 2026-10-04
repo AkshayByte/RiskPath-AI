@@ -3,18 +3,29 @@ Importers for third-party security scanner reports and graph topologies:
 - Trivy JSON vulnerability reports
 - Nessus / OpenVAS CSV reports
 """
+
 import csv
 import io
 import json
 import uuid
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from backend.app.models.database import (
-    Asset, AssetType, Environment, NetworkZone,
-    Vulnerability, VulnerabilitySeverity, AttackVector, AttackComplexity,
-    PrivilegesRequired, UserInteraction, Finding, FindingStatus,
+    Asset,
+    AssetType,
+    AttackComplexity,
+    AttackVector,
+    Environment,
+    Finding,
+    FindingStatus,
+    NetworkZone,
+    PrivilegesRequired,
     Scenario,
+    UserInteraction,
+    Vulnerability,
+    VulnerabilitySeverity,
 )
 
 MAX_IMPORTED_ASSETS = 5_000
@@ -23,6 +34,7 @@ MAX_IMPORTED_FINDINGS = 50_000
 
 class ImportValidationError(Exception):
     """Raised when scanner report content is invalid, malformed, or exceeds entity limits."""
+
     pass
 
 
@@ -37,11 +49,8 @@ def _map_cvss_severity(score: float) -> VulnerabilitySeverity:
 
 
 def import_trivy_json(
-    db: Session,
-    scenario_id: str,
-    raw_json_str: str,
-    scenario_name: Optional[str] = None
-) -> Dict[str, Any]:
+    db: Session, scenario_id: str, raw_json_str: str, scenario_name: str | None = None
+) -> dict[str, Any]:
     """
     Parses a Trivy vulnerability scan JSON output, creating assets and findings in the specified scenario.
     """
@@ -61,7 +70,7 @@ def import_trivy_json(
         scenario = Scenario(
             id=scenario_id,
             name=scenario_name or f"Trivy Import - {scenario_id}",
-            description="Imported from Trivy container/filesystem security scan."
+            description="Imported from Trivy container/filesystem security scan.",
         )
         db.add(scenario)
         db.flush()
@@ -79,16 +88,16 @@ def import_trivy_json(
     created_vulns = 0
     created_findings = 0
     skipped_rows = 0
-    warnings: List[str] = []
+    warnings: list[str] = []
 
     for idx, target_block in enumerate(results):
         if not isinstance(target_block, dict):
             skipped_rows += 1
             continue
 
-        target_name = str(target_block.get("Target") or f"target-{idx+1}")[:200]
-        asset_id = f"{scenario_id}-trivy-asset-{idx+1}"
-        
+        target_name = str(target_block.get("Target") or f"target-{idx + 1}")[:200]
+        asset_id = f"{scenario_id}-trivy-asset-{idx + 1}"
+
         asset = db.query(Asset).filter(Asset.id == asset_id, Asset.scenario_id == scenario_id).first()
         if not asset:
             asset = Asset(
@@ -122,7 +131,7 @@ def import_trivy_json(
 
             cve_id = str(v_data.get("VulnerabilityID") or f"TRIVY-{uuid.uuid4().hex[:8]}")[:50]
             vuln_id = f"{scenario_id}-vuln-{cve_id}"
-            
+
             # Extract CVSS
             cvss_score = 7.5
             cvss_data = v_data.get("CVSS", {})
@@ -132,7 +141,9 @@ def import_trivy_json(
                         cvss_score = float(cvss_data["nvd"]["V3Score"])
                     except (ValueError, TypeError):
                         pass
-                elif "redhat" in cvss_data and isinstance(cvss_data["redhat"], dict) and "V3Score" in cvss_data["redhat"]:
+                elif (
+                    "redhat" in cvss_data and isinstance(cvss_data["redhat"], dict) and "V3Score" in cvss_data["redhat"]
+                ):
                     try:
                         cvss_score = float(cvss_data["redhat"]["V3Score"])
                     except (ValueError, TypeError):
@@ -162,7 +173,9 @@ def import_trivy_json(
                 created_vulns += 1
 
             finding_id = f"{scenario_id}-finding-{asset_id}-{cve_id}"
-            existing_finding = db.query(Finding).filter(Finding.id == finding_id, Finding.scenario_id == scenario_id).first()
+            existing_finding = (
+                db.query(Finding).filter(Finding.id == finding_id, Finding.scenario_id == scenario_id).first()
+            )
             if not existing_finding:
                 finding = Finding(
                     id=finding_id,
@@ -181,16 +194,13 @@ def import_trivy_json(
         "findings_imported": created_findings,
         "rows_skipped": skipped_rows,
         "warnings": warnings,
-        "message": f"Successfully parsed Trivy report for scenario '{scenario_id}'."
+        "message": f"Successfully parsed Trivy report for scenario '{scenario_id}'.",
     }
 
 
 def import_nessus_csv(
-    db: Session,
-    scenario_id: str,
-    raw_csv_str: str,
-    scenario_name: Optional[str] = None
-) -> Dict[str, Any]:
+    db: Session, scenario_id: str, raw_csv_str: str, scenario_name: str | None = None
+) -> dict[str, Any]:
     """
     Parses a Nessus/OpenVAS exported CSV report into assets, vulnerabilities, and findings.
     """
@@ -209,7 +219,7 @@ def import_nessus_csv(
         scenario = Scenario(
             id=scenario_id,
             name=scenario_name or f"Nessus Import - {scenario_id}",
-            description="Imported from Nessus/OpenVAS vulnerability scanner CSV."
+            description="Imported from Nessus/OpenVAS vulnerability scanner CSV.",
         )
         db.add(scenario)
         db.flush()
@@ -218,8 +228,8 @@ def import_nessus_csv(
     created_vulns = 0
     created_findings = 0
     skipped_rows = 0
-    warnings: List[str] = []
-    seen_hosts: Dict[str, str] = {}
+    warnings: list[str] = []
+    seen_hosts: dict[str, str] = {}
 
     for row in reader:
         if not row:
@@ -237,13 +247,13 @@ def import_nessus_csv(
 
         cve = str(row.get("CVE") or row.get("Plugin ID") or f"NESSUS-{uuid.uuid4().hex[:6]}").strip()[:50]
         vuln_name = str(row.get("Name") or row.get("Synopsis") or f"Issue {cve}").strip()[:200]
-        
+
         cvss_raw = row.get("CVSS v3.0 Base Score") or row.get("CVSS") or row.get("CVSS Score") or "5.0"
         try:
             cvss_score = float(cvss_raw)
         except (ValueError, TypeError):
             cvss_score = 5.0
-            
+
         severity = _map_cvss_severity(cvss_score)
 
         if host not in seen_hosts:
@@ -252,7 +262,7 @@ def import_nessus_csv(
                 skipped_rows += 1
                 continue
 
-            asset_id = f"{scenario_id}-host-{len(seen_hosts)+1}"
+            asset_id = f"{scenario_id}-host-{len(seen_hosts) + 1}"
             asset = db.query(Asset).filter(Asset.id == asset_id, Asset.scenario_id == scenario_id).first()
             if not asset:
                 asset = Asset(
@@ -296,7 +306,9 @@ def import_nessus_csv(
             created_vulns += 1
 
         finding_id = f"{scenario_id}-finding-{curr_asset_id}-{cve}"
-        existing_finding = db.query(Finding).filter(Finding.id == finding_id, Finding.scenario_id == scenario_id).first()
+        existing_finding = (
+            db.query(Finding).filter(Finding.id == finding_id, Finding.scenario_id == scenario_id).first()
+        )
         if not existing_finding:
             finding = Finding(
                 id=finding_id,
@@ -315,5 +327,5 @@ def import_nessus_csv(
         "findings_imported": created_findings,
         "rows_skipped": skipped_rows,
         "warnings": warnings,
-        "message": f"Successfully parsed Nessus CSV for scenario '{scenario_id}'."
+        "message": f"Successfully parsed Nessus CSV for scenario '{scenario_id}'.",
     }

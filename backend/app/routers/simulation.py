@@ -1,15 +1,16 @@
 """Remediation what-if simulation router."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import RemediationAction, Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis.prioritization import OrderingPolicy
 from backend.app.analysis.remediation_simulation import (
     resolve_simulation_action,
     run_simulation,
 )
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import RemediationAction, Scenario
 from backend.app.schemas.remediation_simulation import (
     SimulationRequest,
     SimulationResponse,
@@ -33,9 +34,7 @@ def simulate_remediation(
         raise HTTPException(status_code=404, detail="Scenario not found")
 
     if not request.remediation_action_ids:
-        raise HTTPException(
-            status_code=400, detail="At least one remediation action is required"
-        )
+        raise HTTPException(status_code=400, detail="At least one remediation action is required")
     if request.max_depth < 0:
         raise HTTPException(status_code=400, detail="max_depth must be >= 0")
     if request.max_paths < 0:
@@ -56,11 +55,7 @@ def simulate_remediation(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    rows = (
-        db.query(RemediationAction)
-        .filter(RemediationAction.id.in_(request.remediation_action_ids))
-        .all()
-    )
+    rows = db.query(RemediationAction).filter(RemediationAction.id.in_(request.remediation_action_ids)).all()
     found_ids = {str(row.id) for row in rows}
     for requested_id in request.remediation_action_ids:
         if requested_id not in found_ids:

@@ -1,14 +1,15 @@
 """
 Pydantic schemas for Scenario entity.
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ScenarioBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
+    description: str | None = Field(None, max_length=1000)
 
 
 class ScenarioCreate(ScenarioBase):
@@ -16,8 +17,8 @@ class ScenarioCreate(ScenarioBase):
 
 
 class ScenarioUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=1000)
 
 
 class ScenarioResponse(ScenarioBase):

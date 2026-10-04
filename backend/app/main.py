@@ -1,33 +1,34 @@
 """
 FastAPI application entrypoint for RiskPath AI - Context-Aware Cybersecurity Decision Support System.
 """
+
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.app.core.config import settings
 from backend.app.core.database import engine
 from backend.app.models.database import Base
-from backend.data.seeds.seed_data import create_seed_data
-
 from backend.app.routers import (
-    health,
-    scenarios,
-    entities,
-    graph,
-    paths,
+    benchmark,
     blast_radius,
     chokepoints,
-    prioritization,
-    simulation,
-    optimization,
+    entities,
     explanation,
-    benchmark,
     generator,
+    graph,
+    health,
     importers,
+    optimization,
+    paths,
+    prioritization,
+    scenarios,
+    simulation,
 )
+from backend.data.seeds.seed_data import create_seed_data
 
 logger = logging.getLogger("riskpath")
 
@@ -74,8 +75,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler returning clean JSON error responses."""
     logger.exception(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
     return JSONResponse(
-        status_code=500,
-        content={"detail": "An internal server error occurred while processing the request."}
+        status_code=500, content={"detail": "An internal server error occurred while processing the request."}
     )
 
 

@@ -1,12 +1,14 @@
 """Attack path discovery endpoints."""
+
 from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from backend.app.analysis.path_analysis import find_attack_paths, get_cheapest_path, get_shortest_path
 from backend.app.core.database import get_db
-from backend.app.models.database import Scenario
 from backend.app.graph.builder import build_canonical_graph
-from backend.app.analysis.path_analysis import find_attack_paths, get_shortest_path, get_cheapest_path
+from backend.app.models.database import Scenario
 
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/attack-paths", tags=["Attack Paths"])
 
@@ -25,9 +27,9 @@ def get_attack_paths(
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     graph = build_canonical_graph(db, scenario_id)
-    
+
     if path_mode == "shortest":
         path = get_shortest_path(graph, max_depth=max_depth)
         paths = [path] if path else []
@@ -36,5 +38,5 @@ def get_attack_paths(
         paths = [path] if path else []
     else:
         paths = find_attack_paths(graph, max_depth=max_depth, max_paths=max_paths)
-    
+
     return [path.to_dict() for path in paths if path is not None]

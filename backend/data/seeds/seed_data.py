@@ -59,13 +59,10 @@ def _remediation_seed_rows():
 def ensure_remediation_seed_data(db):
     """Idempotently insert demo remediation actions (no duplicates)."""
     for row in _remediation_seed_rows():
-        exists = (
-            db.query(RemediationAction)
-            .filter(RemediationAction.id == row.id)
-            .first()
-        )
+        exists = db.query(RemediationAction).filter(RemediationAction.id == row.id).first()
         if exists is None:
             db.add(row)
+
 
 def create_seed_data():
     db = SessionLocal()
@@ -76,15 +73,15 @@ def create_seed_data():
             ensure_remediation_seed_data(db)
             db.commit()
             return
-        
+
         # Create a basic scenario
         scenario = Scenario(
             id="basic_test_scenario",
             name="Basic Test Scenario",
-            description="A simple test scenario for validating the canonical graph"
+            description="A simple test scenario for validating the canonical graph",
         )
         db.add(scenario)
-        
+
         # Create assets
         web_server = Asset(
             id="asset-web-01",
@@ -99,7 +96,7 @@ def create_seed_data():
             ip_address="203.0.113.1",
             scenario_id="basic_test_scenario",
         )
-        
+
         app_server = Asset(
             id="asset-app-01",
             name="Application Server",
@@ -113,7 +110,7 @@ def create_seed_data():
             ip_address="10.0.1.10",
             scenario_id="basic_test_scenario",
         )
-        
+
         database_server = Asset(
             id="asset-db-01",
             name="Primary Database",
@@ -127,9 +124,9 @@ def create_seed_data():
             ip_address="10.0.2.10",
             scenario_id="basic_test_scenario",
         )
-        
+
         db.add_all([web_server, app_server, database_server])
-        
+
         # Create vulnerabilities
         vuln1 = Vulnerability(
             id="vuln-cve-2023-12345",
@@ -146,7 +143,7 @@ def create_seed_data():
             user_interaction=UserInteraction.NONE,
             scenario_id="basic_test_scenario",
         )
-        
+
         vuln2 = Vulnerability(
             id="vuln-cve-2023-67890",
             cve_id="CVE-2023-67890",
@@ -162,9 +159,9 @@ def create_seed_data():
             user_interaction=UserInteraction.NONE,
             scenario_id="basic_test_scenario",
         )
-        
+
         db.add_all([vuln1, vuln2])
-        
+
         # Create findings
         finding1 = Finding(
             id="finding-01",
@@ -175,7 +172,7 @@ def create_seed_data():
             status=FindingStatus.ACTIVE,
             scenario_id="basic_test_scenario",
         )
-        
+
         finding2 = Finding(
             id="finding-02",
             asset_id="asset-app-01",
@@ -185,9 +182,9 @@ def create_seed_data():
             status=FindingStatus.ACTIVE,
             scenario_id="basic_test_scenario",
         )
-        
+
         db.add_all([finding1, finding2])
-        
+
         # Create edges (attack transitions)
         edge1 = Edge(
             id="edge-web-to-finding1",
@@ -200,7 +197,7 @@ def create_seed_data():
             probability=0.9,
             scenario_id="basic_test_scenario",
         )
-        
+
         edge2 = Edge(
             id="edge-finding1-to-app",
             source_id="finding-01",
@@ -213,7 +210,7 @@ def create_seed_data():
             finding_id="finding-01",
             scenario_id="basic_test_scenario",
         )
-        
+
         edge3 = Edge(
             id="edge-app-to-finding2",
             source_id="asset-app-01",
@@ -225,7 +222,7 @@ def create_seed_data():
             probability=0.8,
             scenario_id="basic_test_scenario",
         )
-        
+
         edge4 = Edge(
             id="edge-finding2-to-db",
             source_id="finding-02",
@@ -238,7 +235,7 @@ def create_seed_data():
             finding_id="finding-02",
             scenario_id="basic_test_scenario",
         )
-        
+
         edge5 = Edge(
             id="edge-direct-web-to-db",
             source_id="asset-web-01",
@@ -250,14 +247,14 @@ def create_seed_data():
             probability=0.3,
             scenario_id="basic_test_scenario",
         )
-        
+
         db.add_all([edge1, edge2, edge3, edge4, edge5])
 
         # Create Enterprise Hybrid Cloud Scenario
         enterprise_scenario = Scenario(
             id="enterprise_cloud_hybrid_scenario",
             name="Enterprise Hybrid Cloud Topology",
-            description="Multi-tier cloud-hybrid architecture with API gateway, microservices, identity provider, crown-jewel customer database, and cloud backup vault."
+            description="Multi-tier cloud-hybrid architecture with API gateway, microservices, identity provider, crown-jewel customer database, and cloud backup vault.",
         )
         db.add(enterprise_scenario)
 
@@ -635,16 +632,17 @@ def create_seed_data():
             db.add(act)
 
         ensure_remediation_seed_data(db)
-        
+
         db.commit()
         print("Seed data created successfully!")
-        
+
     except Exception as e:
         db.rollback()
         print(f"Error creating seed data: {e}")
         raise
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     create_seed_data()

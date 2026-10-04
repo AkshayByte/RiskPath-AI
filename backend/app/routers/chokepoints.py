@@ -1,12 +1,14 @@
 """Chokepoint bottleneck analysis endpoints."""
-from typing import Literal, Optional
+
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis.chokepoint import compute_chokepoints
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import Scenario
 from backend.app.schemas.chokepoint import ChokepointResponse
 
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/chokepoints", tags=["Chokepoint"])
@@ -19,7 +21,7 @@ def get_chokepoints(
     max_paths: int = 100,
     entity_type: Literal["all", "asset", "finding"] = "all",
     min_score: float = 0.0,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -51,10 +53,10 @@ def get_chokepoints(
         raise HTTPException(status_code=400, detail=str(e))
 
     chokepoints = result.chokepoints
-    
+
     if min_score > 0.0:
         chokepoints = [c for c in chokepoints if c.chokepoint_score >= min_score]
-    
+
     if limit is not None:
         chokepoints = chokepoints[:limit]
 

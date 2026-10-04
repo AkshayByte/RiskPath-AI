@@ -3,17 +3,18 @@
 Idempotent by construction: ensure_remediation_seed_data() never duplicates.
 Does not delete seed rows (they are permanent demo data).
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.core.database import SessionLocal
+from backend.app.main import app
+from backend.app.models.database import RemediationAction
 from backend.data.seeds.seed_data import (
     _remediation_seed_rows,
     create_seed_data,
     ensure_remediation_seed_data,
 )
-from backend.app.main import app
-from backend.app.models.database import RemediationAction
 
 SID = "basic_test_scenario"
 client = TestClient(app)
@@ -40,10 +41,7 @@ def test_seed_rows_use_mvp_types_and_real_targets():
     assert len(_remediation_seed_rows()) >= 3
     for row in _remediation_seed_rows():
         assert row.action_type.value in MVP_TYPES
-        targets = [
-            t for t in (row.target_asset_id, row.target_finding_id, row.target_edge_id)
-            if t is not None
-        ]
+        targets = [t for t in (row.target_asset_id, row.target_finding_id, row.target_edge_id) if t is not None]
         assert len(targets) == 1, f"{row.id} must have exactly one target"
         target = targets[0]
         assert target in asset_ids | finding_ids | edge_ids, f"dangling target {target}"
@@ -52,7 +50,7 @@ def test_seed_rows_use_mvp_types_and_real_targets():
 def test_seed_ensure_is_idempotent():
     db = SessionLocal()
     try:
-        before = db.query(RemediationAction).count()
+        db.query(RemediationAction).count()
         ensure_remediation_seed_data(db)
         db.commit()
         after_first = db.query(RemediationAction).count()

@@ -7,12 +7,13 @@ analysis pipeline, and compare baseline vs simulated state.
 
 The baseline graph and database are never mutated.
 """
+
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 import networkx as nx
 
@@ -25,7 +26,6 @@ from backend.app.analysis.prioritization import (
     compute_prioritization,
     path_feasibility,
 )
-
 
 EPSILON = 1e-9
 
@@ -69,13 +69,11 @@ def resolve_simulation_action(action_row: Any, scenario_id: str) -> SimulationAc
     Raises:
         ValueError: on unknown/unsupported/cross-scenario/mistargeted actions.
     """
-    action_id = str(getattr(action_row, "id"))
-    action_type = str(_enum_value(getattr(action_row, "action_type")))
+    action_id = str(action_row.id)
+    action_type = str(_enum_value(action_row.action_type))
     row_scenario = getattr(action_row, "scenario_id", None)
     if row_scenario is not None and str(row_scenario) != str(scenario_id):
-        raise ValueError(
-            f"Remediation action '{action_id}' does not belong to scenario '{scenario_id}'"
-        )
+        raise ValueError(f"Remediation action '{action_id}' does not belong to scenario '{scenario_id}'")
 
     if action_type in DEFERRED_ACTION_TYPES:
         raise ValueError(f"Unsupported remediation action type: {action_type}")
@@ -97,15 +95,12 @@ def resolve_simulation_action(action_row: Any, scenario_id: str) -> SimulationAc
     if len(populated) == 0:
         raise ValueError(f"Remediation action '{action_id}' has no target")
     if len(populated) > 1:
-        raise ValueError(
-            f"Remediation action '{action_id}' has multiple targets: {', '.join(populated)}"
-        )
+        raise ValueError(f"Remediation action '{action_id}' has multiple targets: {', '.join(populated)}")
 
     if action_type in ("PATCH_VULNERABILITY", "REMOVE_VULNERABILITY"):
         if target_finding is None:
             raise ValueError(
-                f"Remediation action '{action_id}' of type {action_type} "
-                "must target a finding (target_finding_id)"
+                f"Remediation action '{action_id}' of type {action_type} must target a finding (target_finding_id)"
             )
         return SimulationAction(
             action_id=action_id,
@@ -116,8 +111,7 @@ def resolve_simulation_action(action_row: Any, scenario_id: str) -> SimulationAc
     if action_type in ("REMOVE_NETWORK_PATH", "RESTRICT_PORT"):
         if target_edge is None:
             raise ValueError(
-                f"Remediation action '{action_id}' of type {action_type} "
-                "must target an edge (target_edge_id)"
+                f"Remediation action '{action_id}' of type {action_type} must target an edge (target_edge_id)"
             )
         return SimulationAction(
             action_id=action_id,
@@ -128,8 +122,7 @@ def resolve_simulation_action(action_row: Any, scenario_id: str) -> SimulationAc
     # ISOLATE_ASSET
     if target_asset is None:
         raise ValueError(
-            f"Remediation action '{action_id}' of type {action_type} "
-            "must target an asset (target_asset_id)"
+            f"Remediation action '{action_id}' of type {action_type} must target an asset (target_asset_id)"
         )
     return SimulationAction(
         action_id=action_id,
@@ -153,48 +146,37 @@ def apply_simulation_action(graph: nx.MultiDiGraph, action: SimulationAction) ->
     if action.target_type == "finding":
         if action.target_id not in graph.nodes:
             raise ValueError(
-                f"Action '{action.action_id}' target finding "
-                f"'{action.target_id}' not found in simulation graph"
+                f"Action '{action.action_id}' target finding '{action.target_id}' not found in simulation graph"
             )
         if graph.nodes[action.target_id].get("type") != "finding":
-            raise ValueError(
-                f"Action '{action.action_id}' target '{action.target_id}' "
-                "is not a finding node"
-            )
+            raise ValueError(f"Action '{action.action_id}' target '{action.target_id}' is not a finding node")
         graph.remove_node(action.target_id)
         return
 
     if action.target_type == "asset":
         if action.target_id not in graph.nodes:
             raise ValueError(
-                f"Action '{action.action_id}' target asset "
-                f"'{action.target_id}' not found in simulation graph"
+                f"Action '{action.action_id}' target asset '{action.target_id}' not found in simulation graph"
             )
         if graph.nodes[action.target_id].get("type") != "asset":
-            raise ValueError(
-                f"Action '{action.action_id}' target '{action.target_id}' "
-                "is not an asset node"
-            )
+            raise ValueError(f"Action '{action.action_id}' target '{action.target_id}' is not an asset node")
         # Findings hosted on the asset remain as graph nodes; they are NOT
         # classified as REMEDIATED. Only their incident edges disappear.
         graph.remove_node(action.target_id)
         return
 
     # Edge target: resolve by Edge.id stored in the edge_id attribute.
-    matches: List[Tuple[str, str, Any]] = []
+    matches: list[tuple[str, str, Any]] = []
     for u, v, key, data in graph.edges(keys=True, data=True):
         if data.get("edge_id") == action.target_id:
             matches.append((u, v, key))
     if not matches:
-        raise ValueError(
-            f"Action '{action.action_id}' target edge "
-            f"'{action.target_id}' not found in simulation graph"
-        )
+        raise ValueError(f"Action '{action.action_id}' target edge '{action.target_id}' not found in simulation graph")
     for u, v, key in matches:
         graph.remove_edge(u, v, key)
 
 
-def percent_change(before: float, after: float) -> Optional[float]:
+def percent_change(before: float, after: float) -> float | None:
     """Percent change with explicit undefined-value semantics."""
     if before == 0.0 and after == 0.0:
         return None
@@ -206,12 +188,12 @@ def percent_change(before: float, after: float) -> Optional[float]:
 @dataclass
 class MetricDelta:
     metric_name: str
-    before: Optional[float]
-    after: Optional[float]
-    absolute_delta: Optional[float]
-    percent_change: Optional[float]
+    before: float | None
+    after: float | None
+    absolute_delta: float | None
+    percent_change: float | None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "metric_name": self.metric_name,
             "before": self.before,
@@ -231,9 +213,7 @@ def _numeric_delta(name: str, before: float, after: float) -> MetricDelta:
     )
 
 
-def _optional_int_delta(
-    name: str, before: Optional[int], after: Optional[int]
-) -> MetricDelta:
+def _optional_int_delta(name: str, before: int | None, after: int | None) -> MetricDelta:
     if before is None or after is None:
         return MetricDelta(
             metric_name=name,
@@ -250,13 +230,13 @@ class FindingRankComparison:
     finding_id: str
     asset_id: str
     status: Literal["ACTIVE", "REMEDIATED"]
-    baseline_rank: Optional[int]
-    simulated_rank: Optional[int]
-    rank_delta: Optional[int]
-    baseline_operational_score: Optional[float]
-    simulated_operational_score: Optional[float]
+    baseline_rank: int | None
+    simulated_rank: int | None
+    rank_delta: int | None
+    baseline_operational_score: float | None
+    simulated_operational_score: float | None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "finding_id": self.finding_id,
             "asset_id": self.asset_id,
@@ -276,8 +256,8 @@ class StateSummary:
     distinct_crown_jewels: int
     sum_path_feasibility: float
     max_path_feasibility: float
-    min_path_depth: Optional[int]
-    max_path_depth: Optional[int]
+    min_path_depth: int | None
+    max_path_depth: int | None
     blast_affected_assets: int
     blast_crown_jewels: int
     blast_max_depth: int
@@ -287,7 +267,7 @@ class StateSummary:
     prioritization_count: int
     max_operational_score: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_attack_paths": self.total_attack_paths,
             "crown_jewel_path_count": self.crown_jewel_path_count,
@@ -311,10 +291,10 @@ class StateSummary:
 class StepResult:
     action: SimulationAction
     state: StateSummary
-    incremental_deltas: List[MetricDelta]
-    incremental_rank_comparison: List[FindingRankComparison]
+    incremental_deltas: list[MetricDelta]
+    incremental_rank_comparison: list[FindingRankComparison]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "action": {
                 "action_id": self.action.action_id,
@@ -324,29 +304,27 @@ class StepResult:
             },
             "state": self.state.to_dict(),
             "incremental_deltas": [d.to_dict() for d in self.incremental_deltas],
-            "incremental_rank_comparison": [
-                r.to_dict() for r in self.incremental_rank_comparison
-            ],
+            "incremental_rank_comparison": [r.to_dict() for r in self.incremental_rank_comparison],
         }
 
 
 @dataclass
 class SimulationResult:
     scenario_id: str
-    action_ids: List[str]
-    applied_actions: List[SimulationAction]
+    action_ids: list[str]
+    applied_actions: list[SimulationAction]
     baseline: StateSummary
-    steps: List[StepResult]
+    steps: list[StepResult]
     final: StateSummary
-    overall_deltas: List[MetricDelta]
-    overall_rank_comparison: List[FindingRankComparison]
-    remediated_findings: List[str]
+    overall_deltas: list[MetricDelta]
+    overall_rank_comparison: list[FindingRankComparison]
+    remediated_findings: list[str]
     max_depth_used: int
     max_paths_used: int
-    policy_snapshot: Dict[str, Any]
+    policy_snapshot: dict[str, Any]
     simulated_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "scenario_id": self.scenario_id,
             "action_ids": list(self.action_ids),
@@ -363,9 +341,7 @@ class SimulationResult:
             "steps": [s.to_dict() for s in self.steps],
             "final": self.final.to_dict(),
             "overall_deltas": [d.to_dict() for d in self.overall_deltas],
-            "overall_rank_comparison": [
-                r.to_dict() for r in self.overall_rank_comparison
-            ],
+            "overall_rank_comparison": [r.to_dict() for r in self.overall_rank_comparison],
             "remediated_findings": sorted(self.remediated_findings),
             "max_depth_used": self.max_depth_used,
             "max_paths_used": self.max_paths_used,
@@ -374,10 +350,8 @@ class SimulationResult:
         }
 
 
-def _summarize_paths(paths: List[Any]) -> Dict[str, Any]:
-    feasibilities = [
-        path_feasibility(p.total_probability, p.total_traversal_cost) for p in paths
-    ]
+def _summarize_paths(paths: list[Any]) -> dict[str, Any]:
+    feasibilities = [path_feasibility(p.total_probability, p.total_traversal_cost) for p in paths]
     if not paths:
         return {
             "total": 0,
@@ -399,7 +373,7 @@ def _summarize_paths(paths: List[Any]) -> Dict[str, Any]:
     }
 
 
-def _empty_blast() -> Dict[str, Any]:
+def _empty_blast() -> dict[str, Any]:
     return {
         "affected_asset_count": 0,
         "crown_jewels_reached": 0,
@@ -410,13 +384,13 @@ def _empty_blast() -> Dict[str, Any]:
 def evaluate_state(
     graph: nx.MultiDiGraph,
     *,
-    blast_sources: List[str],
+    blast_sources: list[str],
     max_depth: int,
     max_paths: int,
     policy: OrderingPolicy,
     scenario_id: str,
-    baseline_asset_context: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> Tuple[StateSummary, Dict[str, Any]]:
+    baseline_asset_context: dict[str, dict[str, Any]] | None = None,
+) -> tuple[StateSummary, dict[str, Any]]:
     """Run the full reused analysis pipeline on one graph state.
 
     Returns the serializable summary plus raw rank/score maps used for
@@ -450,9 +424,7 @@ def evaluate_state(
 
     chokepoints = compute_chokepoints(graph, max_depth=max_depth, max_paths=max_paths)
     choke_details = list(chokepoints.chokepoints)
-    sum_choke = float(
-        sum(float(d.path_feasibility_criticality) for d in choke_details)
-    )
+    sum_choke = float(sum(float(d.path_feasibility_criticality) for d in choke_details))
     max_choke = float(chokepoints.max_chokepoint_score) if choke_details else 0.0
 
     prioritization = compute_prioritization(
@@ -493,7 +465,7 @@ def evaluate_state(
     return summary, rank_map
 
 
-def compare_summaries(before: StateSummary, after: StateSummary) -> List[MetricDelta]:
+def compare_summaries(before: StateSummary, after: StateSummary) -> list[MetricDelta]:
     """Overall/incremental deltas between two state summaries."""
     deltas = [
         _numeric_delta(
@@ -521,12 +493,8 @@ def compare_summaries(before: StateSummary, after: StateSummary) -> List[MetricD
             float(before.max_path_feasibility),
             float(after.max_path_feasibility),
         ),
-        _optional_int_delta(
-            "min_path_depth", before.min_path_depth, after.min_path_depth
-        ),
-        _optional_int_delta(
-            "max_path_depth", before.max_path_depth, after.max_path_depth
-        ),
+        _optional_int_delta("min_path_depth", before.min_path_depth, after.min_path_depth),
+        _optional_int_delta("max_path_depth", before.max_path_depth, after.max_path_depth),
         _numeric_delta(
             "blast_affected_assets",
             float(before.blast_affected_assets),
@@ -572,12 +540,12 @@ def compare_summaries(before: StateSummary, after: StateSummary) -> List[MetricD
 
 
 def compare_ranks(
-    before_ranks: Dict[str, Tuple[int, float, str]],
-    after_ranks: Dict[str, Tuple[int, float, str]],
+    before_ranks: dict[str, tuple[int, float, str]],
+    after_ranks: dict[str, tuple[int, float, str]],
     removed_findings: set[str],
-) -> List[FindingRankComparison]:
+) -> list[FindingRankComparison]:
     """Rank comparison with explicit REMEDIATED status for removed findings."""
-    comparisons: List[FindingRankComparison] = []
+    comparisons: list[FindingRankComparison] = []
     for finding_id in sorted(set(before_ranks) | set(after_ranks) | removed_findings):
         if finding_id in removed_findings:
             baseline = before_ranks.get(finding_id)
@@ -613,7 +581,7 @@ def compare_ranks(
     return comparisons
 
 
-def _policy_snapshot(policy: OrderingPolicy) -> Dict[str, Any]:
+def _policy_snapshot(policy: OrderingPolicy) -> dict[str, Any]:
     return {
         "crown_jewel_first": bool(policy.crown_jewel_first),
         "entry_point_first": bool(policy.entry_point_first),
@@ -629,11 +597,11 @@ def _policy_snapshot(policy: OrderingPolicy) -> Dict[str, Any]:
 
 def run_simulation(
     baseline_graph: nx.MultiDiGraph,
-    actions: List[SimulationAction],
+    actions: list[SimulationAction],
     *,
     max_depth: int = 10,
     max_paths: int = 100,
-    policy: Optional[OrderingPolicy] = None,
+    policy: OrderingPolicy | None = None,
     scenario_id: str = "",
 ) -> SimulationResult:
     """Run deterministic remediation simulation on a deep copy.
@@ -653,14 +621,12 @@ def run_simulation(
     # Fixed blast-radius source population from BASELINE active findings.
     # Baseline asset snapshot for orphaned-finding comparison context.
     # The simulated graph is never re-populated with these nodes.
-    baseline_finding_assets: List[str] = []
-    baseline_asset_context: Dict[str, Dict[str, Any]] = {}
+    baseline_finding_assets: list[str] = []
+    baseline_asset_context: dict[str, dict[str, Any]] = {}
     for node_id, data in baseline_graph.nodes(data=True):
         if data.get("type") == "asset":
             baseline_asset_context[str(node_id)] = dict(data)
-        if data.get("type") == "finding" and str(
-            getattr(data.get("status"), "value", data.get("status"))
-        ) == "active":
+        if data.get("type") == "finding" and str(getattr(data.get("status"), "value", data.get("status"))) == "active":
             baseline_finding_assets.append(str(data.get("asset_id")))
     blast_sources = sorted(set(baseline_finding_assets))
 
@@ -675,7 +641,7 @@ def run_simulation(
     )
 
     sim_graph = copy_simulation_graph(baseline_graph)
-    steps: List[StepResult] = []
+    steps: list[StepResult] = []
     previous_summary = baseline_summary
     previous_ranks = dict(baseline_ranks)
     removed_findings: set[str] = set()
@@ -723,5 +689,5 @@ def run_simulation(
         max_depth_used=max_depth,
         max_paths_used=max_paths,
         policy_snapshot=_policy_snapshot(active_policy),
-        simulated_at=datetime.now(timezone.utc),
+        simulated_at=datetime.now(UTC),
     )

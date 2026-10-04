@@ -2,26 +2,29 @@
 Attack path analysis module for finding paths from entry points to crown jewels
 in a NetworkX MultiDiGraph.
 """
-from collections import deque
-from typing import List, Dict, Any, Optional, Tuple
+
 import heapq
+from collections import deque
+from dataclasses import dataclass
+from typing import Any
+
 import networkx as nx
-from dataclasses import dataclass, field
 
 
 @dataclass
 class AttackPath:
     """Represents an attack path from an entry point to a crown jewel."""
+
     id: str
     entry_point: str
     crown_jewel: str
-    nodes: List[str]
-    edges: List[str]
+    nodes: list[str]
+    edges: list[str]
     hop_count: int
     total_traversal_cost: float
     total_probability: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to a dictionary for JSON serialization."""
         return {
             "id": self.id,
@@ -39,7 +42,7 @@ def find_attack_paths(
     graph: nx.MultiDiGraph,
     max_depth: int = 10,
     max_paths: int = 100,
-) -> List[AttackPath]:
+) -> list[AttackPath]:
     """
     Find all feasible attack paths from entry points to crown jewels.
     Args:
@@ -51,24 +54,16 @@ def find_attack_paths(
         total traversal cost (ascending) for deterministic ordering.
     """
     # Identify entry points and crown jewels
-    entry_points = [
-        node for node, data in graph.nodes(data=True)
-        if data.get('is_entry_point', False)
-    ]
-    crown_jewels = [
-        node for node, data in graph.nodes(data=True)
-        if data.get('is_crown_jewel', False)
-    ]
+    entry_points = [node for node, data in graph.nodes(data=True) if data.get("is_entry_point", False)]
+    crown_jewels = [node for node, data in graph.nodes(data=True) if data.get("is_crown_jewel", False)]
     if not entry_points or not crown_jewels:
         return []
-    all_paths: List[AttackPath] = []
+    all_paths: list[AttackPath] = []
     path_id_counter = 0
     # For each entry point, perform a BFS limited by depth
     for entry in entry_points:
         # Queue items: (current_node, path_nodes, path_edges, cost, prob, depth)
-        queue: deque = deque([
-            (entry, [entry], [], 0.0, 1.0, 0)
-        ])
+        queue: deque = deque([(entry, [entry], [], 0.0, 1.0, 0)])
         while queue and len(all_paths) < max_paths:
             current_node, path_nodes, path_edges, cost, prob, depth = queue.popleft()
             # If we have reached a crown jewel and the path is not just the entry point
@@ -107,7 +102,7 @@ def find_attack_paths(
                     # Extract traversal cost and probability from edge data
                     edge_cost = edge_data.get("traversal_cost", 0.0)
                     edge_prob = edge_data.get("probability", 0.0)
-                    
+
                     # Skip edges with zero probability? Not necessarily, but we can still traverse.
                     # However, if probability is zero, the path probability becomes zero.
                     # We'll still allow it.
@@ -116,32 +111,26 @@ def find_attack_paths(
                     new_cost = cost + edge_cost
                     new_prob = prob * edge_prob
                     new_depth = depth + 1
-                    
-                    queue.append(
-                        (neighbor, new_path_nodes, new_path_edges, new_cost, new_prob, new_depth)
-                    )
+
+                    queue.append((neighbor, new_path_nodes, new_path_edges, new_cost, new_prob, new_depth))
     # Sort paths for deterministic ordering: first by hop count, then by cost, then by ID
     all_paths.sort(key=lambda p: (p.hop_count, p.total_traversal_cost, p.id))
     # Trim to max_paths if we have more (though we already limited in the loop)
     return all_paths[:max_paths]
+
+
 def _entry_points_and_crowns(
     graph: nx.MultiDiGraph,
-) -> Tuple[List[str], set]:
+) -> tuple[list[str], set]:
     """Entry points (graph node order) and crown jewels (lookup set)."""
-    entry_points = [
-        node for node, data in graph.nodes(data=True)
-        if data.get('is_entry_point', False)
-    ]
-    crown_jewels = {
-        node for node, data in graph.nodes(data=True)
-        if data.get('is_crown_jewel', False)
-    }
+    entry_points = [node for node, data in graph.nodes(data=True) if data.get("is_entry_point", False)]
+    crown_jewels = {node for node, data in graph.nodes(data=True) if data.get("is_crown_jewel", False)}
     return entry_points, crown_jewels
 
 
 def _ordered_extensions(
     graph: nx.MultiDiGraph,
-    path_nodes: Tuple[str, ...],
+    path_nodes: tuple[str, ...],
     visited: set,
 ):
     """Yield (neighbor, edge_key, edge_data) in deterministic order.
@@ -164,7 +153,7 @@ def _best_first_path(
     graph: nx.MultiDiGraph,
     max_depth: int,
     priority,
-) -> Optional[AttackPath]:
+) -> AttackPath | None:
     """Return the optimal simple attack path under a heap priority.
 
     priority(depth, cost, entry_index, nodes, edges) -> comparable key.
@@ -177,7 +166,7 @@ def _best_first_path(
     entry_points, crown_jewels = _entry_points_and_crowns(graph)
     if not entry_points or not crown_jewels:
         return None
-    heap: List[Tuple[Any, ...]] = []
+    heap: list[tuple[Any, ...]] = []
     for entry_index, entry in enumerate(entry_points):
         heapq.heappush(
             heap,
@@ -210,7 +199,11 @@ def _best_first_path(
                 heap,
                 (
                     priority(
-                        depth + 1, new_cost, entry_index, new_nodes, new_edges,
+                        depth + 1,
+                        new_cost,
+                        entry_index,
+                        new_nodes,
+                        new_edges,
                     ),
                     new_cost,
                     entry_index,
@@ -222,7 +215,7 @@ def _best_first_path(
     return None
 
 
-def get_shortest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[AttackPath]:
+def get_shortest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> AttackPath | None:
     """
     Get the shortest path (by hop count) from entry points to crown jewels.
     The result is globally optimal: minimal hops, then minimal traversal
@@ -237,10 +230,16 @@ def get_shortest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[A
         graph,
         max_depth,
         lambda depth, cost, entry_index, nodes, edges: (
-            depth, cost, entry_index, nodes, edges,
+            depth,
+            cost,
+            entry_index,
+            nodes,
+            edges,
         ),
     )
-def get_cheapest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[AttackPath]:
+
+
+def get_cheapest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> AttackPath | None:
     """
     Get the cheapest path (by total traversal cost) from entry points to crown jewels.
     The result is globally optimal within max_depth: minimal traversal cost,
@@ -257,6 +256,10 @@ def get_cheapest_path(graph: nx.MultiDiGraph, max_depth: int = 10) -> Optional[A
         graph,
         max_depth,
         lambda depth, cost, entry_index, nodes, edges: (
-            cost, depth, entry_index, nodes, edges,
+            cost,
+            depth,
+            entry_index,
+            nodes,
+            edges,
         ),
     )

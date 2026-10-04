@@ -5,6 +5,7 @@ Unit tests use small in-memory MultiDiGraphs with hand-verifiable optima.
 API tests use the real FastAPI app and seed scenario, creating temporary
 RemediationAction rows cleaned up after each test.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -16,7 +17,6 @@ from fastapi.testclient import TestClient
 from backend.app.analysis import budget_optimization as opt
 from backend.app.main import app
 
-
 client = TestClient(app)
 
 
@@ -24,51 +24,91 @@ def make_graph() -> nx.MultiDiGraph:
     """Two independent attack paths to one crown jewel via distinct findings."""
     graph = nx.MultiDiGraph()
     graph.add_node(
-        "asset-web-01", type="asset", criticality=8.0,
-        is_entry_point=True, is_crown_jewel=False, network_zone="dmz",
+        "asset-web-01",
+        type="asset",
+        criticality=8.0,
+        is_entry_point=True,
+        is_crown_jewel=False,
+        network_zone="dmz",
     )
     graph.add_node(
-        "asset-app-01", type="asset", criticality=9.0,
-        is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
+        "asset-app-01",
+        type="asset",
+        criticality=9.0,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
     )
     graph.add_node(
-        "asset-db-01", type="asset", criticality=10.0,
-        is_entry_point=False, is_crown_jewel=True, network_zone="db_tier",
+        "asset-db-01",
+        type="asset",
+        criticality=10.0,
+        is_entry_point=False,
+        is_crown_jewel=True,
+        network_zone="db_tier",
     )
     graph.add_node(
-        "vuln-1", type="vulnerability", cvss_score=9.8,
-        epss_score=0.85, known_exploited=True,
+        "vuln-1",
+        type="vulnerability",
+        cvss_score=9.8,
+        epss_score=0.85,
+        known_exploited=True,
     )
     graph.add_node(
-        "vuln-2", type="vulnerability", cvss_score=8.2,
-        epss_score=0.65, known_exploited=False,
+        "vuln-2",
+        type="vulnerability",
+        cvss_score=8.2,
+        epss_score=0.65,
+        known_exploited=False,
     )
     graph.add_node(
-        "finding-01", type="finding", asset_id="asset-web-01",
-        vulnerability_id="vuln-1", status="active",
+        "finding-01",
+        type="finding",
+        asset_id="asset-web-01",
+        vulnerability_id="vuln-1",
+        status="active",
     )
     graph.add_node(
-        "finding-02", type="finding", asset_id="asset-app-01",
-        vulnerability_id="vuln-2", status="active",
+        "finding-02",
+        type="finding",
+        asset_id="asset-app-01",
+        vulnerability_id="vuln-2",
+        status="active",
     )
     # High-feasibility path via finding-01.
     graph.add_edge(
-        "asset-web-01", "finding-01", edge_id="e-w-f1",
-        edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9,
+        "asset-web-01",
+        "finding-01",
+        edge_id="e-w-f1",
+        edge_type="CAN_REACH",
+        traversal_cost=1.0,
+        probability=0.9,
     )
     graph.add_edge(
-        "finding-01", "asset-db-01", edge_id="e-f1-db",
-        edge_type="EXPLOITS", traversal_cost=1.0, probability=0.9,
+        "finding-01",
+        "asset-db-01",
+        edge_id="e-f1-db",
+        edge_type="EXPLOITS",
+        traversal_cost=1.0,
+        probability=0.9,
         finding_id="finding-01",
     )
     # Low-feasibility path via finding-02.
     graph.add_edge(
-        "asset-web-01", "finding-02", edge_id="e-w-f2",
-        edge_type="CAN_REACH", traversal_cost=4.0, probability=0.5,
+        "asset-web-01",
+        "finding-02",
+        edge_id="e-w-f2",
+        edge_type="CAN_REACH",
+        traversal_cost=4.0,
+        probability=0.5,
     )
     graph.add_edge(
-        "finding-02", "asset-db-01", edge_id="e-f2-db",
-        edge_type="EXPLOITS", traversal_cost=4.0, probability=0.5,
+        "finding-02",
+        "asset-db-01",
+        edge_id="e-f2-db",
+        edge_type="EXPLOITS",
+        traversal_cost=4.0,
+        probability=0.5,
         finding_id="finding-02",
     )
     return graph
@@ -92,11 +132,10 @@ def candidates(*rows, scenario_id="s1"):
 
 # ----------------------------- validation -----------------------------
 
+
 def test_unknown_action_type_rejected():
     with pytest.raises(ValueError, match="Unknown remediation action type"):
-        opt.resolve_candidates(
-            [fake_row("a1", "BOGUS", target_finding_id="finding-01")], "s1"
-        )
+        opt.resolve_candidates([fake_row("a1", "BOGUS", target_finding_id="finding-01")], "s1")
 
 
 def test_unsupported_action_type_rejected():
@@ -112,8 +151,10 @@ def test_cross_scenario_rejected():
         opt.resolve_candidates(
             [
                 fake_row(
-                    "a1", "PATCH_VULNERABILITY",
-                    target_finding_id="finding-01", scenario_id="other",
+                    "a1",
+                    "PATCH_VULNERABILITY",
+                    target_finding_id="finding-01",
+                    scenario_id="other",
                 )
             ],
             "s1",
@@ -130,7 +171,8 @@ def test_multiple_targets_rejected():
         opt.resolve_candidates(
             [
                 fake_row(
-                    "a1", "PATCH_VULNERABILITY",
+                    "a1",
+                    "PATCH_VULNERABILITY",
                     target_finding_id="finding-01",
                     target_asset_id="asset-web-01",
                 )
@@ -152,8 +194,10 @@ def test_negative_cost_rejected():
         opt.resolve_candidates(
             [
                 fake_row(
-                    "a1", "PATCH_VULNERABILITY",
-                    target_finding_id="finding-01", cost=-1.0,
+                    "a1",
+                    "PATCH_VULNERABILITY",
+                    target_finding_id="finding-01",
+                    cost=-1.0,
                 )
             ],
             "s1",
@@ -177,10 +221,7 @@ def test_empty_candidates_rejected():
 
 
 def test_too_many_candidates_rejected():
-    rows = [
-        fake_row(f"a{i:02d}", "PATCH_VULNERABILITY", target_finding_id="finding-01")
-        for i in range(13)
-    ]
+    rows = [fake_row(f"a{i:02d}", "PATCH_VULNERABILITY", target_finding_id="finding-01") for i in range(13)]
     cands = candidates(*rows)
     assert len(cands) == 13
     with pytest.raises(ValueError, match="At most 12"):
@@ -188,14 +229,13 @@ def test_too_many_candidates_rejected():
 
 
 def test_negative_budget_rejected():
-    cands = candidates(
-        fake_row("a1", "PATCH_VULNERABILITY", target_finding_id="finding-01")
-    )
+    cands = candidates(fake_row("a1", "PATCH_VULNERABILITY", target_finding_id="finding-01"))
     with pytest.raises(ValueError, match="budget must be >= 0"):
         opt.optimize(make_graph(), cands, budget=-1.0, scenario_id="s1")
 
 
 # ----------------------------- objective -----------------------------
+
 
 def test_o1_primary_o2_tiebreak():
     # Each patch eliminates exactly one crown-jewel path (O1 tie);
@@ -300,12 +340,11 @@ def test_all_infeasible_conflicts():
 def test_no_positive_improvement():
     # Graph with no attack paths: nothing to improve.
     graph = nx.MultiDiGraph()
-    graph.add_node("a1", type="asset", criticality=5.0,
-                   is_entry_point=False, is_crown_jewel=False, network_zone="app_tier")
-    graph.add_node("v1", type="vulnerability", cvss_score=5.0,
-                   epss_score=None, known_exploited=False)
-    graph.add_node("f1", type="finding", asset_id="a1",
-                   vulnerability_id="v1", status="active")
+    graph.add_node(
+        "a1", type="asset", criticality=5.0, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier"
+    )
+    graph.add_node("v1", type="vulnerability", cvss_score=5.0, epss_score=None, known_exploited=False)
+    graph.add_node("f1", type="finding", asset_id="a1", vulnerability_id="v1", status="active")
     cands = candidates(
         fake_row("a1", "PATCH_VULNERABILITY", target_finding_id="f1", cost=1.0),
     )
@@ -316,12 +355,11 @@ def test_no_positive_improvement():
 
 def test_zero_path_baseline_reason():
     graph = nx.MultiDiGraph()
-    graph.add_node("a1", type="asset", criticality=5.0,
-                   is_entry_point=False, is_crown_jewel=False, network_zone="app_tier")
-    graph.add_node("v1", type="vulnerability", cvss_score=5.0,
-                   epss_score=None, known_exploited=False)
-    graph.add_node("f1", type="finding", asset_id="a1",
-                   vulnerability_id="v1", status="active")
+    graph.add_node(
+        "a1", type="asset", criticality=5.0, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier"
+    )
+    graph.add_node("v1", type="vulnerability", cvss_score=5.0, epss_score=None, known_exploited=False)
+    graph.add_node("f1", type="finding", asset_id="a1", vulnerability_id="v1", status="active")
     cands = candidates(
         fake_row("a1", "PATCH_VULNERABILITY", target_finding_id="f1", cost=1.0),
     )
@@ -397,9 +435,7 @@ def test_selected_matches_direct_simulation():
         scenario_id="s1",
     )
     assert result.selected.total_attack_paths == direct.final.total_attack_paths
-    assert result.selected.sum_path_feasibility == pytest.approx(
-        direct.final.sum_path_feasibility
-    )
+    assert result.selected.sum_path_feasibility == pytest.approx(direct.final.sum_path_feasibility)
     assert result.baseline.total_attack_paths == direct.baseline.total_attack_paths
     assert by_id["a1"].estimated_cost == 5.0
 
@@ -425,22 +461,17 @@ def test_infeasible_cap():
     graph = make_graph()
     rows = []
     for i in range(6):
-        rows.append(
-            fake_row(f"p{i}", "PATCH_VULNERABILITY", target_finding_id="finding-01", cost=1.0)
-        )
-        rows.append(
-            fake_row(f"e{i}", "REMOVE_NETWORK_PATH", target_edge_id="e-f1-db", cost=1.0)
-        )
+        rows.append(fake_row(f"p{i}", "PATCH_VULNERABILITY", target_finding_id="finding-01", cost=1.0))
+        rows.append(fake_row(f"e{i}", "REMOVE_NETWORK_PATH", target_edge_id="e-f1-db", cost=1.0))
     cands = candidates(*rows)
     result = opt.optimize(graph, cands, budget=100.0, scenario_id="s1")
     assert result.infeasible_subset_count > 0
     assert len(result.reported_infeasible_subsets) <= 100
-    assert len(result.reported_infeasible_subsets) == min(
-        100, result.infeasible_subset_count
-    )
+    assert len(result.reported_infeasible_subsets) == min(100, result.infeasible_subset_count)
 
 
 # ----------------------------- API tests -----------------------------
+
 
 def _create_action_row(action_id, action_type, scenario_id="basic_test_scenario", **targets):
     from backend.app.core.database import SessionLocal
@@ -579,8 +610,10 @@ def test_api_unsupported_action():
 def test_api_cross_scenario_action():
     action_id = "test-opt-foreign-01"
     _create_action_row(
-        action_id, "PATCH_VULNERABILITY",
-        target_finding_id="finding-01", scenario_id="other-scenario",
+        action_id,
+        "PATCH_VULNERABILITY",
+        target_finding_id="finding-01",
+        scenario_id="other-scenario",
     )
     try:
         response = client.post(
@@ -603,14 +636,28 @@ def test_api_response_schema():
         assert response.status_code == 200
         data = response.json()
         required = {
-            "scenario_id", "budget", "objective", "candidates",
-            "selected_action_ids", "selected_total_cost", "within_budget",
-            "objective_o1", "objective_o2", "selection_reason",
-            "baseline", "selected", "overall_deltas",
-            "overall_rank_comparison", "remediated_findings",
-            "evaluated_subset_count", "infeasible_subset_count",
-            "over_budget_subset_count", "reported_infeasible_subsets",
-            "max_depth_used", "max_paths_used", "optimized_at",
+            "scenario_id",
+            "budget",
+            "objective",
+            "candidates",
+            "selected_action_ids",
+            "selected_total_cost",
+            "within_budget",
+            "objective_o1",
+            "objective_o2",
+            "selection_reason",
+            "baseline",
+            "selected",
+            "overall_deltas",
+            "overall_rank_comparison",
+            "remediated_findings",
+            "evaluated_subset_count",
+            "infeasible_subset_count",
+            "over_budget_subset_count",
+            "reported_infeasible_subsets",
+            "max_depth_used",
+            "max_paths_used",
+            "optimized_at",
         }
         assert required.issubset(set(data.keys()))
         assert data["objective_o1"] >= 0.0

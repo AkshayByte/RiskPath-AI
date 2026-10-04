@@ -1,17 +1,18 @@
 """
 Test cases for blast radius analysis.
 """
-import pytest
+
 import networkx as nx
+import pytest
 from fastapi.testclient import TestClient
-from backend.app.main import app
+
 from backend.app.analysis.blast_radius import (
-    compute_blast_radius,
     BlastRadiusResult,
-    ReachabilityDetail,
+    compute_blast_radius,
 )
 from backend.app.core.database import SessionLocal
 from backend.app.graph.builder import build_canonical_graph
+from backend.app.main import app
 from backend.app.models.database import Scenario
 
 
@@ -31,26 +32,26 @@ def create_test_graph() -> nx.MultiDiGraph:
 
     # Edges: source -> finding-1 -> mid -> finding-2 -> target
     graph.add_edge(
-        "asset-source", "finding-1",
-        edge_id="edge-1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9
+        "asset-source", "finding-1", edge_id="edge-1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9
     )
     graph.add_edge(
-        "finding-1", "asset-mid",
-        edge_id="edge-2", edge_type="EXPLOITS", traversal_cost=2.0, probability=0.7
+        "finding-1", "asset-mid", edge_id="edge-2", edge_type="EXPLOITS", traversal_cost=2.0, probability=0.7
     )
     graph.add_edge(
-        "asset-mid", "finding-2",
-        edge_id="edge-3", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.8
+        "asset-mid", "finding-2", edge_id="edge-3", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.8
     )
     graph.add_edge(
-        "finding-2", "asset-target",
-        edge_id="edge-4", edge_type="EXPLOITS", traversal_cost=2.5, probability=0.6
+        "finding-2", "asset-target", edge_id="edge-4", edge_type="EXPLOITS", traversal_cost=2.5, probability=0.6
     )
 
     # Direct edge source -> target (alternative path)
     graph.add_edge(
-        "asset-source", "asset-target",
-        edge_id="edge-direct", edge_type="CAN_REACH", traversal_cost=5.0, probability=0.3
+        "asset-source",
+        "asset-target",
+        edge_id="edge-direct",
+        edge_type="CAN_REACH",
+        traversal_cost=5.0,
+        probability=0.3,
     )
 
     return graph
@@ -81,11 +82,17 @@ def create_multi_path_graph() -> nx.MultiDiGraph:
     graph.add_node("asset-intermediate", type="asset", is_entry_point=False, is_crown_jewel=False)
 
     # Path 1: source -> intermediate -> target (cost 3, prob 0.6)
-    graph.add_edge("asset-source", "asset-intermediate", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9)
-    graph.add_edge("asset-intermediate", "asset-target", edge_id="e2", edge_type="CAN_REACH", traversal_cost=2.0, probability=0.6)
+    graph.add_edge(
+        "asset-source", "asset-intermediate", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9
+    )
+    graph.add_edge(
+        "asset-intermediate", "asset-target", edge_id="e2", edge_type="CAN_REACH", traversal_cost=2.0, probability=0.6
+    )
 
     # Path 2: source -> target directly (cost 5, prob 0.3)
-    graph.add_edge("asset-source", "asset-target", edge_id="e3", edge_type="CAN_REACH", traversal_cost=5.0, probability=0.3)
+    graph.add_edge(
+        "asset-source", "asset-target", edge_id="e3", edge_type="CAN_REACH", traversal_cost=5.0, probability=0.3
+    )
 
     return graph
 
@@ -98,7 +105,9 @@ def create_zero_prob_graph() -> nx.MultiDiGraph:
     graph.add_node("asset-target", type="asset", is_entry_point=False, is_crown_jewel=True)
 
     # Zero probability edge - still reachable but prob=0
-    graph.add_edge("asset-source", "asset-target", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.0)
+    graph.add_edge(
+        "asset-source", "asset-target", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.0
+    )
 
     return graph
 
@@ -284,7 +293,9 @@ class TestBlastRadiusEdgeCases:
         graph = nx.MultiDiGraph()
         graph.add_node("asset-source", type="asset", is_entry_point=True, is_crown_jewel=True)
         graph.add_node("asset-target", type="asset", is_entry_point=False, is_crown_jewel=True)
-        graph.add_edge("asset-source", "asset-target", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9)
+        graph.add_edge(
+            "asset-source", "asset-target", edge_id="e1", edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9
+        )
 
         result = compute_blast_radius(graph, "asset-source", max_depth=5)
         assert "asset-source" in result.crown_jewels_reached
@@ -296,9 +307,6 @@ class TestBlastRadiusWithSeedScenario:
 
     def test_seed_scenario_blast_radius(self):
         """Test blast radius with the actual seed scenario."""
-        from backend.app.core.database import SessionLocal
-        from backend.app.graph.builder import build_canonical_graph
-        from backend.app.models.database import Scenario
 
         db = SessionLocal()
         try:
@@ -440,6 +448,7 @@ class TestBlastRadiusAPI:
         assert data["crown_jewels_reached"] == sorted(data["crown_jewels_reached"])
         detail_ids = [d["asset_id"] for d in data["reachability_details"]]
         assert detail_ids == sorted(detail_ids)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

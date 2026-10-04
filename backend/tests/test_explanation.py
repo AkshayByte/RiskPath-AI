@@ -5,6 +5,7 @@ All provider interactions use scripted fakes — no network access.
 Prose is never exact-string matched; tests assert structure, grounding,
 validation behavior, failure handling, privacy, and determinism.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,13 +14,10 @@ from fastapi.testclient import TestClient
 from backend.app.analysis import explanation as ex
 from backend.app.main import app
 from backend.app.services.explanation_provider import (
-    DeterministicFallbackProvider,
     ProviderDraft,
     ProviderTimeoutError,
     ScriptedFakeProvider,
-    get_default_provider,
 )
-
 
 client = TestClient(app)
 
@@ -103,8 +101,8 @@ def make_finding_result(**overrides):
 
 def make_simulation_result():
     def delta(name, before, after):
-        change = None if before == 0.0 and after == 0.0 else (
-            None if before == 0.0 else (after - before) / before * 100.0
+        change = (
+            None if before == 0.0 and after == 0.0 else (None if before == 0.0 else (after - before) / before * 100.0)
         )
         return {
             "metric_name": name,
@@ -308,7 +306,7 @@ def make_optimization_result():
 
 
 def valid_finding_draft(refs):
-    ids = [r.ref_id for r in refs]
+    [r.ref_id for r in refs]
     by_path = {r.source_path: r.ref_id for r in refs}
 
     def num(path):
@@ -391,18 +389,14 @@ def test_finding_evidence_assembly_allowlist():
     assert assembled.payload["finding_id"] == "finding-01"
     assert assembled.payload["operational_rank"] == 1
     # Refs deterministic: E1.. in order, unique.
-    assert [r.ref_id for r in assembled.refs] == [
-        f"E{i + 1}" for i in range(len(assembled.refs))
-    ]
+    assert [r.ref_id for r in assembled.refs] == [f"E{i + 1}" for i in range(len(assembled.refs))]
 
 
 def test_simulation_evidence_assembly_allowlist():
     assembled = ex.assemble_simulation_evidence(make_simulation_result())
     assert assembled.payload["action_ids"] == ["rem-patch-01"]
     assert assembled.payload["remediated_findings"] == ["finding-01"]
-    assert [r.ref_id for r in assembled.refs] == [
-        f"E{i + 1}" for i in range(len(assembled.refs))
-    ]
+    assert [r.ref_id for r in assembled.refs] == [f"E{i + 1}" for i in range(len(assembled.refs))]
 
 
 def test_optimization_evidence_assembly_allowlist():
@@ -430,10 +424,7 @@ def test_source_path_resolution():
         "steps": [{"state": {"total_attack_paths": 5}}],
     }
     assert ex.resolve_source_path(evidence, "profile.path_participation_count") == 3
-    assert (
-        ex.resolve_source_path(evidence, "overall_deltas[crown_jewel_path_count].after")
-        == 1.0
-    )
+    assert ex.resolve_source_path(evidence, "overall_deltas[crown_jewel_path_count].after") == 1.0
     assert ex.resolve_source_path(evidence, "steps[0].state.total_attack_paths") == 5
 
 
@@ -664,9 +655,7 @@ def test_finding_eps_missing_wording():
     payload = make_finding_result(epss_score=None, epss_available=False)
     assembled = ex.assemble_finding_evidence(payload)
     rendered = ex.render_fallback(assembled)
-    joined = " ".join(
-        c["statement"] for c in rendered["limitations"]
-    )
+    joined = " ".join(c["statement"] for c in rendered["limitations"])
     assert "EPSS" in joined
     assert "unavailable" in joined.lower()
 
@@ -690,9 +679,7 @@ def test_finding_zero_path_state():
 
 def test_simulation_remediated_and_orphan_refs():
     assembled = ex.assemble_simulation_evidence(make_simulation_result())
-    assert "finding-01" in [
-        r.value for r in assembled.refs if r.source_path.startswith("remediated_findings[")
-    ]
+    assert "finding-01" in [r.value for r in assembled.refs if r.source_path.startswith("remediated_findings[")]
     rendered = ex.render_fallback(assembled)
     assert rendered["summary"]["evidence_refs"]
 

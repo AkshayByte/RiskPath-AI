@@ -1,4 +1,3 @@
-from typing import List
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,7 +13,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="riskpath-secret-key-change-in-production")
     MAX_GRAPH_NODES: int = 10000
     MAX_GRAPH_EDGES: int = 50000
-    
+
     # Seeding & environment configuration
     SEED_DEMO_DATA: bool = Field(default=True)
     CORS_ORIGINS: str = Field(
@@ -32,7 +31,7 @@ class Settings(BaseSettings):
     AI_BASE_URL: str = Field(default="")
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         if not self.CORS_ORIGINS:
             return ["*"]
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

@@ -2,7 +2,9 @@
 Pytest configuration and session-wide fixtures for RiskPath AI test suites.
 Ensures database schema and seed data are initialized before any tests run.
 """
+
 import pytest
+
 from backend.app.core.database import engine
 from backend.app.models.database import Base
 from backend.data.seeds.seed_data import create_seed_data

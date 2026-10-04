@@ -1,10 +1,11 @@
 """
 Pydantic schemas for remediation simulation.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,21 +19,21 @@ class SimulationActionResponse(BaseModel):
 
 class MetricDeltaResponse(BaseModel):
     metric_name: str
-    before: Optional[float] = None
-    after: Optional[float] = None
-    absolute_delta: Optional[float] = None
-    percent_change: Optional[float] = None
+    before: float | None = None
+    after: float | None = None
+    absolute_delta: float | None = None
+    percent_change: float | None = None
 
 
 class FindingRankComparisonResponse(BaseModel):
     finding_id: str
     asset_id: str
     status: Literal["ACTIVE", "REMEDIATED"]
-    baseline_rank: Optional[int] = Field(None, ge=1)
-    simulated_rank: Optional[int] = Field(None, ge=1)
-    rank_delta: Optional[int] = None
-    baseline_operational_score: Optional[float] = Field(None, ge=0.0)
-    simulated_operational_score: Optional[float] = Field(None, ge=0.0)
+    baseline_rank: int | None = Field(None, ge=1)
+    simulated_rank: int | None = Field(None, ge=1)
+    rank_delta: int | None = None
+    baseline_operational_score: float | None = Field(None, ge=0.0)
+    simulated_operational_score: float | None = Field(None, ge=0.0)
 
 
 class StateSummaryResponse(BaseModel):
@@ -41,8 +42,8 @@ class StateSummaryResponse(BaseModel):
     distinct_crown_jewels: int = Field(..., ge=0)
     sum_path_feasibility: float = Field(..., ge=0.0)
     max_path_feasibility: float = Field(..., ge=0.0)
-    min_path_depth: Optional[int] = Field(None, ge=0)
-    max_path_depth: Optional[int] = Field(None, ge=0)
+    min_path_depth: int | None = Field(None, ge=0)
+    max_path_depth: int | None = Field(None, ge=0)
     blast_affected_assets: int = Field(..., ge=0)
     blast_crown_jewels: int = Field(..., ge=0)
     blast_max_depth: int = Field(..., ge=0)
@@ -56,12 +57,12 @@ class StateSummaryResponse(BaseModel):
 class StepResultResponse(BaseModel):
     action: SimulationActionResponse
     state: StateSummaryResponse
-    incremental_deltas: List[MetricDeltaResponse]
-    incremental_rank_comparison: List[FindingRankComparisonResponse]
+    incremental_deltas: list[MetricDeltaResponse]
+    incremental_rank_comparison: list[FindingRankComparisonResponse]
 
 
 class SimulationRequest(BaseModel):
-    remediation_action_ids: List[str] = Field(...)
+    remediation_action_ids: list[str] = Field(...)
     max_depth: int = 10
     max_paths: int = 100
     crown_jewel_first: bool = True
@@ -88,14 +89,14 @@ class SimulationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     scenario_id: str
-    action_ids: List[str]
-    applied_actions: List[SimulationActionResponse]
+    action_ids: list[str]
+    applied_actions: list[SimulationActionResponse]
     baseline: StateSummaryResponse
-    steps: List[StepResultResponse]
+    steps: list[StepResultResponse]
     final: StateSummaryResponse
-    overall_deltas: List[MetricDeltaResponse]
-    overall_rank_comparison: List[FindingRankComparisonResponse]
-    remediated_findings: List[str]
+    overall_deltas: list[MetricDeltaResponse]
+    overall_rank_comparison: list[FindingRankComparisonResponse]
+    remediated_findings: list[str]
     max_depth_used: int = Field(..., ge=0)
     max_paths_used: int = Field(..., ge=0)
     policy_snapshot: dict

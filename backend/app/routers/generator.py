@@ -1,22 +1,24 @@
 import logging
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
 from backend.app.analysis.synthetic_generator import (
-    generate_synthetic_scenario,
     ScenarioExistsError,
+    generate_synthetic_scenario,
 )
+from backend.app.core.database import get_db
 
 logger = logging.getLogger("riskpath.generator")
 router = APIRouter(prefix="/api/scenarios", tags=["Scenario Generator"])
 
 
 class SyntheticScenarioRequest(BaseModel):
-    scenario_id: str = Field(..., min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$", description="Unique scenario ID")
-    name: Optional[str] = Field(None, max_length=200, description="Human-readable scenario name")
+    scenario_id: str = Field(
+        ..., min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$", description="Unique scenario ID"
+    )
+    name: str | None = Field(None, max_length=200, description="Human-readable scenario name")
     asset_count: int = Field(50, ge=10, le=500, description="Number of assets/nodes (10 - 500)")
     entry_point_ratio: float = Field(0.1, ge=0.01, le=0.5, description="Fraction of nodes that are entry points")
     crown_jewel_ratio: float = Field(0.08, ge=0.01, le=0.5, description="Fraction of nodes that are crown jewels")
@@ -28,9 +30,7 @@ class SyntheticScenarioRequest(BaseModel):
         entries = max(1, round(self.asset_count * self.entry_point_ratio))
         jewels = max(1, round(self.asset_count * self.crown_jewel_ratio))
         if entries + jewels > self.asset_count // 2:
-            raise ValueError(
-                "entry_point_ratio + crown_jewel_ratio leave too few intermediate assets"
-            )
+            raise ValueError("entry_point_ratio + crown_jewel_ratio leave too few intermediate assets")
         return self
 
 
@@ -47,10 +47,7 @@ class SyntheticScenarioResponse(BaseModel):
 
 
 @router.post("/generate-synthetic", response_model=SyntheticScenarioResponse, status_code=201)
-def generate_synthetic(
-    request: SyntheticScenarioRequest,
-    db: Session = Depends(get_db)
-):
+def generate_synthetic(request: SyntheticScenarioRequest, db: Session = Depends(get_db)):
     """
     Generate a large-scale realistic multi-tier synthetic topology (10 - 500 nodes)
     with DMZ, App Tier, DB Tier, Management Zone, vulnerabilities, findings, and attack transitions.

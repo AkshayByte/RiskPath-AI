@@ -22,6 +22,7 @@ dist/
 
 # Test / coverage / tooling caches
 .pytest_cache/
+.hypothesis/
 .coverage
 .coverage.*
 htmlcov/
@@ -88,21 +89,16 @@ desktop.ini
 verify_graph.py
 
 # ============================================================
+# Frontend build artifacts
+# ============================================================
+
+frontend/dist/
+frontend/node_modules/
+
+# ============================================================
 # Alembic temporary / generated artifacts
 # ============================================================
 
 backend/alembic/__pycache__/
 backend/alembic/versions/__pycache__/
 backend/alembic/env.py.bak
-
-# ============================================================
-# Documentation
-# ============================================================
-# Project documentation is maintained locally and is not part
-# of the source-code repository.
-
-*.md
-
-# Keep the main repository README if desired.
-# Remove this exception if you want ALL Markdown ignored.
-!README.md

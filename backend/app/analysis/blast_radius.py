@@ -5,9 +5,10 @@ in a NetworkX MultiDiGraph.
 This module implements a bounded multi-objective label-setting algorithm (Bellman-Ford style
 with Pareto frontiers per node per depth) to compute the blast radius of a compromised asset.
 """
+
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+
 import networkx as nx
 
 
@@ -17,6 +18,7 @@ class Label:
     A non-dominated (cost, probability) pair at a specific depth.
     The `order=True` gives cost-first then prob for deterministic set ordering.
     """
+
     cost: float
     prob: float
 
@@ -26,10 +28,11 @@ class ReachabilityDetail:
     """
     Aggregated reachability metrics for a single asset across all depths.
     """
+
     asset_id: str
-    depth: int              # minimum depth at which asset is reachable
+    depth: int  # minimum depth at which asset is reachable
     min_traversal_cost: float  # minimum cost across ALL paths (any depth)
-    max_probability: float     # maximum probability across ALL paths (any depth)
+    max_probability: float  # maximum probability across ALL paths (any depth)
 
     def to_dict(self) -> dict:
         return {
@@ -45,12 +48,13 @@ class BlastRadiusResult:
     """
     Complete blast radius result for a source asset.
     """
+
     source_asset: str
-    affected_assets: List[str]           # sorted asset IDs
+    affected_assets: list[str]  # sorted asset IDs
     affected_asset_count: int
-    crown_jewels_reached: List[str]      # sorted subset
+    crown_jewels_reached: list[str]  # sorted subset
     max_depth_reached: int
-    reachability_details: List[ReachabilityDetail]  # sorted by asset_id
+    reachability_details: list[ReachabilityDetail]  # sorted by asset_id
 
     def to_dict(self) -> dict:
         return {
@@ -93,18 +97,18 @@ def compute_blast_radius(
     # Validate source exists and is an asset
     if source_asset_id not in graph:
         raise ValueError(f"Source node {source_asset_id} not in graph")
-    if graph.nodes[source_asset_id].get('type') != 'asset':
+    if graph.nodes[source_asset_id].get("type") != "asset":
         raise ValueError(f"Source {source_asset_id} is not an asset node")
 
     # Labels per node per depth: labels[node_id][depth] = List[Label]
     # Each Label represents an actual path to (node, depth)
-    labels: Dict[str, Dict[int, List[Label]]] = defaultdict(lambda: defaultdict(list))
+    labels: dict[str, dict[int, list[Label]]] = defaultdict(lambda: defaultdict(list))
 
     # Initialize with source at depth 0
     labels[source_asset_id][0] = [Label(cost=0.0, prob=1.0)]
 
     # Queue entries: (depth, node_id, cost, prob)
-    queue: List[tuple] = [(0, source_asset_id, 0.0, 1.0)]
+    queue: list[tuple] = [(0, source_asset_id, 0.0, 1.0)]
 
     # Track maximum depth actually processed
     max_depth_reached = 0
@@ -135,8 +139,8 @@ def compute_blast_radius(
 
             for edge_key in sorted(edge_data_dict.keys()):
                 edge = edge_data_dict[edge_key]
-                edge_cost = edge.get('traversal_cost', 0.0)
-                edge_prob = edge.get('probability', 0.0)
+                edge_cost = edge.get("traversal_cost", 0.0)
+                edge_prob = edge.get("probability", 0.0)
 
                 new_depth = depth + 1
                 new_cost = cost + edge_cost
@@ -157,8 +161,7 @@ def compute_blast_radius(
 
                 # Remove existing labels dominated by the new one
                 labels[neighbor][new_depth] = [
-                    lbl for lbl in neighbor_labels
-                    if not (new_cost <= lbl.cost and new_prob >= lbl.prob)
+                    lbl for lbl in neighbor_labels if not (new_cost <= lbl.cost and new_prob >= lbl.prob)
                 ]
 
                 # Add new label
@@ -172,7 +175,7 @@ def compute_blast_radius(
 
     for node_id, depth_map in labels.items():
         # Only include asset nodes in the final result
-        if graph.nodes[node_id].get('type') != 'asset':
+        if graph.nodes[node_id].get("type") != "asset":
             continue
 
         all_labels = [lbl for depth_labels in depth_map.values() for lbl in depth_labels]
@@ -180,33 +183,28 @@ def compute_blast_radius(
             continue
 
         # Minimum depth at which this asset is reachable
-        min_depth = min(
-            d for d, dl in depth_map.items() if dl
-        )
+        min_depth = min(d for d, dl in depth_map.items() if dl)
 
         # Minimum cost and maximum probability across ALL paths (any depth)
         min_cost = min(lbl.cost for lbl in all_labels)
         max_prob = max(lbl.prob for lbl in all_labels)
 
         reachable_assets[node_id] = {
-            'min_depth': min_depth,
-            'min_cost': min_cost,
-            'max_prob': max_prob,
+            "min_depth": min_depth,
+            "min_cost": min_cost,
+            "max_prob": max_prob,
         }
 
     # Build deterministic result
     affected_assets = sorted(reachable_assets.keys())
-    crown_jewels = sorted(
-        aid for aid in affected_assets
-        if graph.nodes[aid].get('is_crown_jewel', False)
-    )
+    crown_jewels = sorted(aid for aid in affected_assets if graph.nodes[aid].get("is_crown_jewel", False))
 
     reachability_details = [
         ReachabilityDetail(
             asset_id=aid,
-            depth=reachable_assets[aid]['min_depth'],
-            min_traversal_cost=reachable_assets[aid]['min_cost'],
-            max_probability=reachable_assets[aid]['max_prob'],
+            depth=reachable_assets[aid]["min_depth"],
+            min_traversal_cost=reachable_assets[aid]["min_cost"],
+            max_probability=reachable_assets[aid]["max_prob"],
         )
         for aid in affected_assets
     ]

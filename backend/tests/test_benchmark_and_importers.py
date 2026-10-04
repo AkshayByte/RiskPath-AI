@@ -1,7 +1,8 @@
 import json
 import uuid
-import pytest
+
 from fastapi.testclient import TestClient
+
 from backend.app.main import app
 
 client = TestClient(app)
@@ -17,8 +18,8 @@ def test_synthetic_scenario_generation_success():
             "asset_count": 20,
             "entry_point_ratio": 0.1,
             "crown_jewel_ratio": 0.1,
-            "seed": 42
-        }
+            "seed": 42,
+        },
     )
     assert response.status_code == 201, response.text
     data = response.json()
@@ -32,7 +33,7 @@ def test_synthetic_scenario_generation_success():
 def test_synthetic_scenario_reproducible_seed():
     sc_id_1 = f"test_synth_seed_{uuid.uuid4().hex[:6]}"
     sc_id_2 = f"test_synth_seed_{uuid.uuid4().hex[:6]}"
-    
+
     res1 = client.post(
         "/api/scenarios/generate-synthetic",
         json={
@@ -40,8 +41,8 @@ def test_synthetic_scenario_reproducible_seed():
             "asset_count": 25,
             "entry_point_ratio": 0.1,
             "crown_jewel_ratio": 0.1,
-            "seed": 12345
-        }
+            "seed": 12345,
+        },
     )
     assert res1.status_code == 201
     d1 = res1.json()
@@ -53,8 +54,8 @@ def test_synthetic_scenario_reproducible_seed():
             "asset_count": 25,
             "entry_point_ratio": 0.1,
             "crown_jewel_ratio": 0.1,
-            "seed": 12345
-        }
+            "seed": 12345,
+        },
     )
     assert res2.status_code == 201
     d2 = res2.json()
@@ -72,14 +73,20 @@ def test_synthetic_scenario_conflict_409():
     sc_id = f"test_conflict_{uuid.uuid4().hex[:6]}"
     res1 = client.post(
         "/api/scenarios/generate-synthetic",
-        json={"scenario_id": sc_id, "asset_count": 15, "entry_point_ratio": 0.1, "crown_jewel_ratio": 0.1}
+        json={"scenario_id": sc_id, "asset_count": 15, "entry_point_ratio": 0.1, "crown_jewel_ratio": 0.1},
     )
     assert res1.status_code == 201
 
     # Overwrite = False should raise 409 Conflict
     res2 = client.post(
         "/api/scenarios/generate-synthetic",
-        json={"scenario_id": sc_id, "asset_count": 15, "entry_point_ratio": 0.1, "crown_jewel_ratio": 0.1, "overwrite": False}
+        json={
+            "scenario_id": sc_id,
+            "asset_count": 15,
+            "entry_point_ratio": 0.1,
+            "crown_jewel_ratio": 0.1,
+            "overwrite": False,
+        },
     )
     assert res2.status_code == 409
 
@@ -89,12 +96,7 @@ def test_synthetic_scenario_ratio_validation_422():
     # 0.4 + 0.4 = 0.8 > 0.5 (leaves too few intermediate nodes)
     res = client.post(
         "/api/scenarios/generate-synthetic",
-        json={
-            "scenario_id": sc_id,
-            "asset_count": 20,
-            "entry_point_ratio": 0.4,
-            "crown_jewel_ratio": 0.4
-        }
+        json={"scenario_id": sc_id, "asset_count": 20, "entry_point_ratio": 0.4, "crown_jewel_ratio": 0.4},
     )
     assert res.status_code == 422
 
@@ -110,8 +112,8 @@ def test_benchmark_endpoint():
             "asset_count": 15,
             "entry_point_ratio": 0.15,
             "crown_jewel_ratio": 0.15,
-            "seed": 99
-        }
+            "seed": 99,
+        },
     )
     assert gen_res.status_code == 201, gen_res.text
 
@@ -143,22 +145,15 @@ def test_trivy_import_endpoint():
                         "Title": "Buffer overflow in OpenSSL",
                         "Description": "Memory corruption flaw in TLS handshake",
                         "Severity": "HIGH",
-                        "CVSS": {
-                            "nvd": {
-                                "V3Score": 8.8
-                            }
-                        }
+                        "CVSS": {"nvd": {"V3Score": 8.8}},
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
     response = client.post(
         f"/api/scenarios/{sc_id}/import/trivy",
-        json={
-            "content": json.dumps(sample_trivy),
-            "scenario_name": "Trivy Test Import"
-        }
+        json={"content": json.dumps(sample_trivy), "scenario_name": "Trivy Test Import"},
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -169,10 +164,7 @@ def test_trivy_import_endpoint():
 
 def test_trivy_import_malformed_422():
     sc_id = f"test_trivy_bad_{uuid.uuid4().hex[:6]}"
-    response = client.post(
-        f"/api/scenarios/{sc_id}/import/trivy",
-        json={"content": "{ invalid_json ]"}
-    )
+    response = client.post(f"/api/scenarios/{sc_id}/import/trivy", json={"content": "{ invalid_json ]"})
     assert response.status_code == 422
 
 
@@ -183,11 +175,7 @@ def test_nessus_csv_import_endpoint():
 10111,CVE-2023-8888,7.5,High,192.168.1.50,SSH Weak Ciphers,SSH server allows weak ciphers
 """
     response = client.post(
-        f"/api/scenarios/{sc_id}/import/nessus",
-        json={
-            "content": sample_nessus,
-            "scenario_name": "Nessus Test Import"
-        }
+        f"/api/scenarios/{sc_id}/import/nessus", json={"content": sample_nessus, "scenario_name": "Nessus Test Import"}
     )
     assert response.status_code == 200, response.text
     data = response.json()
@@ -198,8 +186,5 @@ def test_nessus_csv_import_endpoint():
 
 def test_nessus_import_empty_422():
     sc_id = f"test_nessus_empty_{uuid.uuid4().hex[:6]}"
-    response = client.post(
-        f"/api/scenarios/{sc_id}/import/nessus",
-        json={"content": "   "}
-    )
+    response = client.post(f"/api/scenarios/{sc_id}/import/nessus", json={"content": "   "})
     assert response.status_code == 422

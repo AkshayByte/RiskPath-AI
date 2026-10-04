@@ -1,5 +1,5 @@
 """Entity listing router for assets, findings, edges, and remediation actions."""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from backend.app.schemas.remediation import RemediationActionResponse
 router = APIRouter(prefix="/api/scenarios/{scenario_id}", tags=["Entities"])
 
 
-@router.get("/assets", response_model=List[AssetResponse], tags=["Assets"])
+@router.get("/assets", response_model=list[AssetResponse], tags=["Assets"])
 async def get_scenario_assets(scenario_id: str, db: Session = Depends(get_db)):
     """Get all assets in a scenario."""
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
@@ -23,7 +23,7 @@ async def get_scenario_assets(scenario_id: str, db: Session = Depends(get_db)):
     return assets
 
 
-@router.get("/findings", response_model=List[FindingResponse], tags=["Findings"])
+@router.get("/findings", response_model=list[FindingResponse], tags=["Findings"])
 async def get_scenario_findings(scenario_id: str, db: Session = Depends(get_db)):
     """Get all findings in a scenario."""
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
@@ -33,7 +33,7 @@ async def get_scenario_findings(scenario_id: str, db: Session = Depends(get_db))
     return findings
 
 
-@router.get("/edges", response_model=List[EdgeResponse], tags=["Edges"])
+@router.get("/edges", response_model=list[EdgeResponse], tags=["Edges"])
 async def get_scenario_edges(scenario_id: str, db: Session = Depends(get_db)):
     """Get all edges in a scenario."""
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
@@ -43,7 +43,7 @@ async def get_scenario_edges(scenario_id: str, db: Session = Depends(get_db)):
     return edges
 
 
-@router.get("/remediation-actions", response_model=List[RemediationActionResponse], tags=["Remediation"])
+@router.get("/remediation-actions", response_model=list[RemediationActionResponse], tags=["Remediation"])
 async def get_scenario_remediation_actions(scenario_id: str, db: Session = Depends(get_db)):
     """Get all remediation actions in a scenario."""
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()

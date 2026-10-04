@@ -1,17 +1,14 @@
 """
 Pydantic schemas for Asset entity.
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from backend.app.models.database import (
-    AssetType, Environment, NetworkZone
-)
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class AssetTypeEnum(str, Enum):
+class AssetTypeEnum(StrEnum):
     WORKSTATION = "workstation"
     WEB_SERVER = "web_server"
     APP_SERVER = "app_server"
@@ -22,7 +19,7 @@ class AssetTypeEnum(str, Enum):
     DOMAIN_CONTROLLER = "domain_controller"
 
 
-class EnvironmentEnum(str, Enum):
+class EnvironmentEnum(StrEnum):
     PRODUCTION = "production"
     STAGING = "staging"
     DEVELOPMENT = "development"
@@ -30,7 +27,7 @@ class EnvironmentEnum(str, Enum):
     INTERNAL = "internal"
 
 
-class NetworkZoneEnum(str, Enum):
+class NetworkZoneEnum(StrEnum):
     EXTERNAL = "external"
     DMZ = "dmz"
     APP_TIER = "app_tier"
@@ -47,8 +44,8 @@ class AssetBase(BaseModel):
     is_entry_point: bool = False
     is_crown_jewel: bool = False
     owner: str = Field(..., min_length=1, max_length=255)
-    ip_address: Optional[str] = None
-    description: Optional[str] = None
+    ip_address: str | None = None
+    description: str | None = None
 
 
 class AssetCreate(AssetBase):
@@ -56,16 +53,16 @@ class AssetCreate(AssetBase):
 
 
 class AssetUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    type: Optional[AssetTypeEnum] = None
-    criticality: Optional[float] = Field(None, ge=1.0, le=10.0)
-    environment: Optional[EnvironmentEnum] = None
-    network_zone: Optional[NetworkZoneEnum] = None
-    is_entry_point: Optional[bool] = None
-    is_crown_jewel: Optional[bool] = None
-    owner: Optional[str] = Field(None, min_length=1, max_length=255)
-    ip_address: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    type: AssetTypeEnum | None = None
+    criticality: float | None = Field(None, ge=1.0, le=10.0)
+    environment: EnvironmentEnum | None = None
+    network_zone: NetworkZoneEnum | None = None
+    is_entry_point: bool | None = None
+    is_crown_jewel: bool | None = None
+    owner: str | None = Field(None, min_length=1, max_length=255)
+    ip_address: str | None = None
+    description: str | None = None
 
 
 class AssetResponse(AssetBase):

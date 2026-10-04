@@ -5,6 +5,7 @@ No live network calls. The Groq SDK client is replaced with scripted
 fakes injected through the provider constructor. No credentials exist
 anywhere in this file.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from backend.app.core.config import settings
 from backend.app.services import explanation_provider as provider_mod
 from backend.app.services.explanation_provider import (
     ProviderDraft,
@@ -21,14 +23,9 @@ from backend.app.services.explanation_provider import (
 )
 from backend.app.services.groq_provider import GroqExplanationProvider
 
-from backend.app.core.config import settings
-
-
 VALID_DRAFT = {
     "summary": {"statement": "Ranked 1 with score 2.5.", "evidence_refs": ["E1"]},
-    "key_factors": [
-        {"type": "FACT", "statement": "Participates in 2 paths.", "evidence_refs": ["E2"]}
-    ],
+    "key_factors": [{"type": "FACT", "statement": "Participates in 2 paths.", "evidence_refs": ["E2"]}],
     "impact": [],
     "changes": [],
     "limitations": [],
@@ -88,9 +85,7 @@ class FakeGroqClient:
 
 
 def make_response(content):
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
-    )
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
 
 
 def make_provider(script, **kwargs):
@@ -123,9 +118,7 @@ def test_successful_completion_and_draft_conversion():
 
 
 def test_configured_model_passed_to_sdk():
-    provider, _ = make_provider(
-        [make_response(json.dumps(VALID_DRAFT))], model="llama-3.1-8b-instant"
-    )
+    provider, _ = make_provider([make_response(json.dumps(VALID_DRAFT))], model="llama-3.1-8b-instant")
     prompt = {
         "system_instructions": "sys",
         "grounding_rules": "rules",
@@ -220,9 +213,7 @@ def test_auth_failure_no_retry():
 
 
 def test_timeout_handling():
-    provider, _ = make_provider(
-        [FakeTimeoutError("slow"), FakeTimeoutError("slow")], max_retries=1
-    )
+    provider, _ = make_provider([FakeTimeoutError("slow"), FakeTimeoutError("slow")], max_retries=1)
     with pytest.raises(ProviderTimeoutError):
         provider.generate(
             {
@@ -235,9 +226,7 @@ def test_timeout_handling():
 
 
 def test_rate_limit_handling():
-    provider, _ = make_provider(
-        [FakeRateLimitError(), FakeRateLimitError()], max_retries=1
-    )
+    provider, _ = make_provider([FakeRateLimitError(), FakeRateLimitError()], max_retries=1)
     with pytest.raises(ProviderRateLimitError):
         provider.generate(
             {
@@ -268,9 +257,7 @@ def test_connection_failure_retried():
 
 
 def test_server_error_retried_then_success():
-    provider, _ = make_provider(
-        [FakeServerError(), make_response(json.dumps(VALID_DRAFT))], max_retries=1
-    )
+    provider, _ = make_provider([FakeServerError(), make_response(json.dumps(VALID_DRAFT))], max_retries=1)
     draft = provider.generate(
         {
             "system_instructions": "s",
@@ -379,7 +366,6 @@ def _minimal_finding_payload():
 
 
 def _minimal_finding_result():
-    from backend.app.analysis import explanation as ex_mod
 
     profile = _minimal_finding_payload()
     return {
@@ -474,9 +460,7 @@ def test_deterministic_result_survives_provider_failure():
         def generate(self, prompt):
             raise ProviderTimeoutError("slow")
 
-    explanation, status, origin = ex_mod.explain_with_provider(
-        assembled, FailingGroqLike(), None
-    )
+    explanation, status, origin = ex_mod.explain_with_provider(assembled, FailingGroqLike(), None)
     assert status == "UNAVAILABLE"
     assert origin == "none"
     assert explanation["key_factors"] == []
@@ -487,9 +471,7 @@ def test_fallback_still_works():
 
     assembled = ex_mod.assemble_finding_evidence(_minimal_finding_result())
     provider = provider_mod.DeterministicFallbackProvider()
-    explanation, status, origin = ex_mod.explain_with_provider(
-        assembled, provider, None
-    )
+    explanation, status, origin = ex_mod.explain_with_provider(assembled, provider, None)
     assert status == "FALLBACK"
     assert origin == "fallback-template"
     assert explanation["summary"]["statement"]

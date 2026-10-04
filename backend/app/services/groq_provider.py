@@ -8,11 +8,12 @@ all remain in backend/app/analysis/explanation.py.
 
 No secrets are logged, returned, or embedded in exceptions.
 """
+
 from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from backend.app.services.explanation_provider import (
     ProviderDraft,
@@ -29,7 +30,7 @@ DEFAULT_MAX_RETRIES = 1
 # Strict JSON Schema mirroring ProviderDraft. Every object sets
 # additionalProperties: false and every field is required, per the
 # strict structured-output contract.
-DRAFT_JSON_SCHEMA: Dict[str, Any] = {
+DRAFT_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "summary": {
@@ -129,7 +130,7 @@ class GroqExplanationProvider:
         model: str = DEFAULT_MODEL,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         client: Any = None,
     ) -> None:
         if not api_key:
@@ -143,15 +144,12 @@ class GroqExplanationProvider:
             self._client = self._build_client(api_key, timeout, base_url)
 
     @staticmethod
-    def _build_client(api_key: str, timeout: float, base_url: Optional[str]):
+    def _build_client(api_key: str, timeout: float, base_url: str | None):
         try:
             from groq import Groq
         except ImportError as exc:
-            raise ProviderError(
-                "The 'groq' package is not installed; "
-                "install it to use the Groq provider"
-            ) from exc
-        kwargs: Dict[str, Any] = {"api_key": api_key, "timeout": timeout}
+            raise ProviderError("The 'groq' package is not installed; install it to use the Groq provider") from exc
+        kwargs: dict[str, Any] = {"api_key": api_key, "timeout": timeout}
         if base_url:
             kwargs["base_url"] = base_url
         # Retries are managed explicitly by generate() per AI_MAX_RETRIES;
@@ -159,7 +157,7 @@ class GroqExplanationProvider:
         kwargs["max_retries"] = 0
         return Groq(**kwargs)
 
-    def _messages(self, prompt: Dict[str, Any]) -> List[Dict[str, str]]:
+    def _messages(self, prompt: dict[str, Any]) -> list[dict[str, str]]:
         system_text = (
             prompt.get("system_instructions", "")
             + "\n\n"
@@ -198,11 +196,11 @@ class GroqExplanationProvider:
         except Exception as exc:
             raise ProviderError("Groq returned an invalid draft structure") from exc
 
-    def generate(self, prompt: Dict[str, Any]) -> ProviderDraft:
+    def generate(self, prompt: dict[str, Any]) -> ProviderDraft:
         """Call Groq with strict structured output; map errors to provider types."""
         messages = self._messages(prompt)
         attempts = 1 + max(0, int(self._max_retries))
-        last_error: Optional[BaseException] = None
+        last_error: BaseException | None = None
         for attempt in range(attempts):
             try:
                 response = self._client.chat.completions.create(

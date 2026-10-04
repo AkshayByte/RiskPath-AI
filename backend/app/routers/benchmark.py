@@ -2,15 +2,16 @@
 Benchmark comparison router (CVSS vs. Context-Aware).
 Evaluates empirical risk reduction advantages between isolated CVSS sorting and graph context-aware prioritization.
 """
+
 import logging
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.analysis.benchmark import run_head_to_head_benchmark
 from backend.app.core.database import get_db
 from backend.app.models.database import Scenario
-from backend.app.analysis.benchmark import run_head_to_head_benchmark
 
 logger = logging.getLogger("riskpath.benchmark")
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/benchmark", tags=["Benchmark"])
@@ -19,8 +20,8 @@ ScenarioId = Path(..., min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
 
 
 class StrategyResult(BaseModel):
-    ranked_findings: List[str]
-    selected_actions: List[str]
+    ranked_findings: list[str]
+    selected_actions: list[str]
     remaining_paths: int
     paths_eliminated: int
     efficiency: float
@@ -58,9 +59,6 @@ def get_scenario_benchmark(
     try:
         result = run_head_to_head_benchmark(db, scenario_id, budget=budget)
         return result.to_dict()
-    except Exception as e:
+    except Exception:
         logger.exception(f"Benchmark calculation failed for scenario '{scenario_id}'")
-        raise HTTPException(
-            status_code=500,
-            detail="Benchmark calculation failed due to an internal server error."
-        )
+        raise HTTPException(status_code=500, detail="Benchmark calculation failed due to an internal server error.")

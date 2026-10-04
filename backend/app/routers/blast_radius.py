@@ -1,11 +1,12 @@
 """Blast radius reachability analysis endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis.blast_radius import compute_blast_radius
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import Scenario
 from backend.app.schemas.blast_radius import BlastRadiusResponse
 
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/blast-radius", tags=["Blast Radius"])

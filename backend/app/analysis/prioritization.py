@@ -5,19 +5,20 @@ This module builds a policy-independent PriorityProfile for every active finding
 and then converts those profiles into a policy-specific operational ordering.
 The analytical profile deliberately contains no universal "priority score".
 """
+
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import isfinite
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Literal
 
 import networkx as nx
 
-from backend.app.analysis.path_analysis import AttackPath, find_attack_paths
 from backend.app.analysis.blast_radius import BlastRadiusResult, compute_blast_radius
 from backend.app.analysis.chokepoint import ChokepointResult, compute_chokepoints
-
+from backend.app.analysis.path_analysis import AttackPath, find_attack_paths
 
 EPSILON = 1e-9
 
@@ -97,9 +98,9 @@ def _bool_value(value: Any) -> bool:
     return bool(value)
 
 
-def get_active_findings(graph: nx.MultiDiGraph) -> List[str]:
+def get_active_findings(graph: nx.MultiDiGraph) -> list[str]:
     """Return active finding node IDs in deterministic order."""
-    finding_ids: List[str] = []
+    finding_ids: list[str] = []
     for node_id, data in graph.nodes(data=True):
         if data.get("type") != "finding":
             continue
@@ -112,14 +113,14 @@ def get_active_findings(graph: nx.MultiDiGraph) -> List[str]:
 def build_finding_path_mapping(
     paths: Iterable[AttackPath],
     graph: nx.MultiDiGraph,
-) -> Dict[str, List[AttackPath]]:
+) -> dict[str, list[AttackPath]]:
     """
     Map each finding ID to the attack paths containing that finding node.
 
     This is deliberately finding-level: two findings on the same asset can
     participate in different attack paths.
     """
-    mapping: Dict[str, List[AttackPath]] = {}
+    mapping: dict[str, list[AttackPath]] = {}
     for path in paths:
         seen_in_path: set[str] = set()
         for node_id in path.nodes:
@@ -133,7 +134,7 @@ def build_finding_path_mapping(
     return mapping
 
 
-def aggregate_blast_radius(result: BlastRadiusResult) -> Dict[str, Any]:
+def aggregate_blast_radius(result: BlastRadiusResult) -> dict[str, Any]:
     """Aggregate downstream Blast Radius details into profile-level evidence."""
     details = list(result.reachability_details)
     if not details:
@@ -156,7 +157,7 @@ def aggregate_blast_radius(result: BlastRadiusResult) -> Dict[str, Any]:
     }
 
 
-def _find_remediation_context(graph: nx.MultiDiGraph, finding: Dict[str, Any]) -> Dict[str, Any]:
+def _find_remediation_context(graph: nx.MultiDiGraph, finding: dict[str, Any]) -> dict[str, Any]:
     """
     Read optional remediation metadata from the finding node.
 
@@ -183,7 +184,7 @@ class PriorityProfile:
 
     # Vulnerability-intrinsic
     cvss_normalized: float
-    epss_score: Optional[float]
+    epss_score: float | None
     epss_available: bool
     known_exploited: bool
     severity_category: str
@@ -203,7 +204,7 @@ class PriorityProfile:
     asset_criticality_normalized: float
     is_entry_point: bool
     is_crown_jewel: bool
-    network_zone: Optional[str]
+    network_zone: str | None
     blast_radius_asset_count: int
     blast_radius_crown_jewels: int
     blast_radius_max_depth: int
@@ -220,15 +221,15 @@ class PriorityProfile:
 
     # Remediation context (descriptive only)
     remediation_cost: float
-    implementation_complexity: Optional[str]
+    implementation_complexity: str | None
     downtime_required: bool
-    action_type: Optional[str]
+    action_type: str | None
 
     # Baseline descriptive context for orphaned findings (simulation only).
     # None for ordinary findings whose asset exists in the analyzed graph.
-    baseline_is_entry_point: Optional[bool] = None
+    baseline_is_entry_point: bool | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "finding_id": self.finding_id,
             "asset_id": self.asset_id,
@@ -273,7 +274,7 @@ class PriorityProfile:
 @dataclass
 class VulnerabilityEvidence:
     cvss_normalized: float
-    epss_score: Optional[float]
+    epss_score: float | None
     known_exploited: bool
     severity_category: str
 
@@ -295,7 +296,7 @@ class EnvironmentalEvidence:
     asset_criticality_normalized: float
     is_entry_point: bool
     is_crown_jewel: bool
-    network_zone: Optional[str]
+    network_zone: str | None
     blast_radius_assets: int
     blast_radius_crown_jewels: int
     blast_radius_max_depth: int
@@ -316,9 +317,9 @@ class ChokepointEvidence:
 @dataclass
 class RemediationEvidence:
     remediation_cost: float
-    implementation_complexity: Optional[str]
+    implementation_complexity: str | None
     downtime_required: bool
-    action_type: Optional[str]
+    action_type: str | None
 
 
 @dataclass
@@ -329,7 +330,7 @@ class EvidenceBreakdown:
     chokepoint: ChokepointEvidence
     remediation_context: RemediationEvidence
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "vulnerability_intrinsic": self.vulnerability_intrinsic.__dict__,
             "attack_path_context": self.attack_path_context.__dict__,
@@ -374,13 +375,13 @@ DEFAULT_POLICY = OrderingPolicy()
 
 @dataclass
 class OrderingKeys:
-    tiers: Tuple[int, ...]
+    tiers: tuple[int, ...]
     composite_score: float
     tiebreaker: str
     finding_id: str
     asset_id: str
 
-    def sort_key(self) -> Tuple[Any, ...]:
+    def sort_key(self) -> tuple[Any, ...]:
         return (
             self.tiers,
             -self.composite_score,
@@ -399,7 +400,7 @@ class PrioritizationResult:
     scenario_id: str
     computed_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "profile": self.profile.to_dict(),
             "operational_rank": self.operational_rank,
@@ -427,7 +428,7 @@ class OperationalItem:
 
 @dataclass
 class OperationalOrdering:
-    items: List[OperationalItem]
+    items: list[OperationalItem]
     policy: OrderingPolicy
 
 
@@ -436,7 +437,7 @@ def compute_ordering_keys(
     policy: OrderingPolicy,
 ) -> OrderingKeys:
     """Build deterministic ordering keys and compute the composite exactly once."""
-    tiers: List[int] = []
+    tiers: list[int] = []
 
     if policy.crown_jewel_first:
         tiers.append(0 if profile.crown_jewel_reachable else 1)
@@ -513,11 +514,11 @@ def _build_evidence_breakdown(profile: PriorityProfile) -> EvidenceBreakdown:
 def _build_profile(
     graph: nx.MultiDiGraph,
     finding_id: str,
-    paths: List[AttackPath],
-    blast_radius: Optional[BlastRadiusResult],
-    finding_chokepoint: Optional[Any],
-    asset_chokepoint: Optional[Any],
-    baseline_asset: Optional[Dict[str, Any]] = None,
+    paths: list[AttackPath],
+    blast_radius: BlastRadiusResult | None,
+    finding_chokepoint: Any | None,
+    asset_chokepoint: Any | None,
+    baseline_asset: dict[str, Any] | None = None,
 ) -> PriorityProfile:
     finding = graph.nodes[finding_id]
     asset_id = str(finding.get("asset_id"))
@@ -539,16 +540,11 @@ def _build_profile(
         asset = graph.nodes[asset_id]
         asset_missing = False
     if vulnerability_id not in graph.nodes or graph.nodes[vulnerability_id].get("type") != "vulnerability":
-        raise ValueError(
-            f"Finding '{finding_id}' references missing/non-vulnerability node '{vulnerability_id}'"
-        )
+        raise ValueError(f"Finding '{finding_id}' references missing/non-vulnerability node '{vulnerability_id}'")
 
     vulnerability = graph.nodes[vulnerability_id]
 
-    feasibility_values = [
-        path_feasibility(p.total_probability, p.total_traversal_cost)
-        for p in paths
-    ]
+    feasibility_values = [path_feasibility(p.total_probability, p.total_traversal_cost) for p in paths]
 
     if feasibility_values:
         max_feasibility = max(feasibility_values)
@@ -580,9 +576,7 @@ def _build_profile(
     )
 
     finding_chokepoint_score = float(getattr(finding_chokepoint, "chokepoint_score", 0.0))
-    finding_rwp = float(
-        getattr(finding_chokepoint, "path_feasibility_criticality", 0.0)
-    )
+    finding_rwp = float(getattr(finding_chokepoint, "path_feasibility_criticality", 0.0))
     finding_path_count = int(getattr(finding_chokepoint, "path_count", 0))
     asset_chokepoint_score = float(getattr(asset_chokepoint, "chokepoint_score", 0.0))
     asset_rwp = float(getattr(asset_chokepoint, "path_feasibility_criticality", 0.0))
@@ -611,12 +605,8 @@ def _build_profile(
         unique_crown_jewels=unique_crown_jewels,
         min_path_depth=min_depth,
         max_path_depth=max_depth,
-        asset_criticality_normalized=normalize_asset_criticality(
-            _float_or_zero(asset.get("criticality"))
-        ),
-        is_entry_point=(
-            False if asset_missing else _bool_value(asset.get("is_entry_point", False))
-        ),
+        asset_criticality_normalized=normalize_asset_criticality(_float_or_zero(asset.get("criticality"))),
+        is_entry_point=(False if asset_missing else _bool_value(asset.get("is_entry_point", False))),
         is_crown_jewel=_bool_value(asset.get("is_crown_jewel", False)),
         network_zone=asset.get("network_zone"),
         blast_radius_asset_count=int(blast.get("affected_asset_count", 0)),
@@ -634,9 +624,7 @@ def _build_profile(
         implementation_complexity=remediation["implementation_complexity"],
         downtime_required=bool(remediation["downtime_required"]),
         action_type=remediation["action_type"],
-        baseline_is_entry_point=(
-            _bool_value(asset.get("is_entry_point", False)) if asset_missing else None
-        ),
+        baseline_is_entry_point=(_bool_value(asset.get("is_entry_point", False)) if asset_missing else None),
     )
 
 
@@ -646,8 +634,8 @@ def compute_prioritization(
     max_paths: int = 100,
     policy: OrderingPolicy = DEFAULT_POLICY,
     scenario_id: str = "",
-    baseline_asset_context: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> List[PrioritizationResult]:
+    baseline_asset_context: dict[str, dict[str, Any]] | None = None,
+) -> list[PrioritizationResult]:
     """
     Compute contextual profiles and policy-specific operational ordering.
 
@@ -670,13 +658,8 @@ def compute_prioritization(
     finding_to_paths = build_finding_path_mapping(paths, graph)
 
     # 2. Blast radius for unique active-finding-associated assets
-    active_asset_ids = sorted(
-        {
-            str(graph.nodes[finding_id].get("asset_id"))
-            for finding_id in active_finding_ids
-        }
-    )
-    blast_results: Dict[str, BlastRadiusResult] = {}
+    active_asset_ids = sorted({str(graph.nodes[finding_id].get("asset_id")) for finding_id in active_finding_ids})
+    blast_results: dict[str, BlastRadiusResult] = {}
     for asset_id in active_asset_ids:
         if asset_id in graph.nodes and graph.nodes[asset_id].get("type") == "asset":
             blast_results[asset_id] = compute_blast_radius(
@@ -691,14 +674,11 @@ def compute_prioritization(
         max_depth=max_depth,
         max_paths=max_paths,
     )
-    entity_to_chokepoint = {
-        str(detail.entity_id): detail
-        for detail in chokepoint_result.chokepoints
-    }
+    entity_to_chokepoint = {str(detail.entity_id): detail for detail in chokepoint_result.chokepoints}
 
     # 4. Build policy-independent profiles
-    computed_at = datetime.now(timezone.utc)
-    results: List[PrioritizationResult] = []
+    computed_at = datetime.now(UTC)
+    results: list[PrioritizationResult] = []
 
     for finding_id in active_finding_ids:
         finding_node = graph.nodes[finding_id]

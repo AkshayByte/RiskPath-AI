@@ -8,6 +8,7 @@ support. find_attack_paths ("all" mode) semantics are asserted unchanged.
 
 All graphs here are synthetic NetworkX objects; no database is involved.
 """
+
 import networkx as nx
 import pytest
 
@@ -23,9 +24,7 @@ def make_graph():
 
 
 def add_node(g, node_id, entry=False, crown=False):
-    g.add_node(
-        node_id, type="asset", is_entry_point=entry, is_crown_jewel=crown
-    )
+    g.add_node(node_id, type="asset", is_entry_point=entry, is_crown_jewel=crown)
 
 
 def add_edge(g, edge_id, source, target, cost=1.0, prob=0.5):

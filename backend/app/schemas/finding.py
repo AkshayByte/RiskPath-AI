@@ -1,15 +1,14 @@
 """
 Pydantic schemas for Finding entity.
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from backend.app.models.database import FindingStatus
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class FindingStatusEnum(str, Enum):
+class FindingStatusEnum(StrEnum):
     ACTIVE = "active"
     REMEDIATED = "remediated"
     SUPPRESSED = "suppressed"
@@ -19,10 +18,10 @@ class FindingStatusEnum(str, Enum):
 class FindingBase(BaseModel):
     asset_id: str = Field(..., min_length=1, max_length=100)
     vulnerability_id: str = Field(..., min_length=1, max_length=100)
-    port: Optional[int] = Field(None, ge=1, le=65535)
-    service_name: Optional[str] = Field(None, max_length=255)
+    port: int | None = Field(None, ge=1, le=65535)
+    service_name: str | None = Field(None, max_length=255)
     status: FindingStatusEnum = FindingStatusEnum.ACTIVE
-    discovered_at: Optional[datetime] = None
+    discovered_at: datetime | None = None
 
 
 class FindingCreate(FindingBase):
@@ -30,12 +29,12 @@ class FindingCreate(FindingBase):
 
 
 class FindingUpdate(BaseModel):
-    asset_id: Optional[str] = Field(None, min_length=1, max_length=100)
-    vulnerability_id: Optional[str] = Field(None, min_length=1, max_length=100)
-    port: Optional[int] = Field(None, ge=1, le=65535)
-    service_name: Optional[str] = Field(None, max_length=255)
-    status: Optional[FindingStatusEnum] = None
-    discovered_at: Optional[datetime] = None
+    asset_id: str | None = Field(None, min_length=1, max_length=100)
+    vulnerability_id: str | None = Field(None, min_length=1, max_length=100)
+    port: int | None = Field(None, ge=1, le=65535)
+    service_name: str | None = Field(None, max_length=255)
+    status: FindingStatusEnum | None = None
+    discovered_at: datetime | None = None
 
 
 class FindingResponse(FindingBase):

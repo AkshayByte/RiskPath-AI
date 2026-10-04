@@ -1,15 +1,16 @@
 """Budget-constrained remediation optimization router."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import RemediationAction, Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis.budget_optimization import (
     MAX_CANDIDATE_ACTIONS,
     optimize,
     resolve_candidates,
 )
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import RemediationAction, Scenario
 from backend.app.schemas.budget_optimization import (
     OptimizationRequest,
     OptimizationResponse,
@@ -33,9 +34,7 @@ def optimize_remediation(
         raise HTTPException(status_code=404, detail="Scenario not found")
 
     if not request.candidate_action_ids:
-        raise HTTPException(
-            status_code=400, detail="At least one candidate action is required"
-        )
+        raise HTTPException(status_code=400, detail="At least one candidate action is required")
     if len(request.candidate_action_ids) > MAX_CANDIDATE_ACTIONS:
         raise HTTPException(
             status_code=400,
@@ -45,9 +44,7 @@ def optimize_remediation(
             ),
         )
     if len(set(request.candidate_action_ids)) != len(request.candidate_action_ids):
-        raise HTTPException(
-            status_code=400, detail="Duplicate candidate_action_ids are not allowed"
-        )
+        raise HTTPException(status_code=400, detail="Duplicate candidate_action_ids are not allowed")
     if request.budget < 0:
         raise HTTPException(status_code=400, detail="budget must be >= 0")
     if request.max_depth < 0:
@@ -55,11 +52,7 @@ def optimize_remediation(
     if request.max_paths < 0:
         raise HTTPException(status_code=400, detail="max_paths must be >= 0")
 
-    rows = (
-        db.query(RemediationAction)
-        .filter(RemediationAction.id.in_(request.candidate_action_ids))
-        .all()
-    )
+    rows = db.query(RemediationAction).filter(RemediationAction.id.in_(request.candidate_action_ids)).all()
     found_ids = {str(row.id) for row in rows}
     for requested_id in request.candidate_action_ids:
         if requested_id not in found_ids:

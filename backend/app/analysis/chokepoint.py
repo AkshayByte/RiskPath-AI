@@ -11,13 +11,14 @@ The primary metric is ChokepointScore, a normalized measure of how much
 risk-weighted attack-path feasibility (probability/cost) passes through
 each entity across all discovered attack paths.
 """
+
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import List, Dict, Literal, Optional
+from typing import Literal
+
 import networkx as nx
 
-from backend.app.analysis.path_analysis import find_attack_paths, AttackPath
-
+from backend.app.analysis.path_analysis import find_attack_paths
 
 EPSILON = 1e-9
 
@@ -27,15 +28,16 @@ class ChokepointDetail:
     """
     Detailed chokepoint metrics for a single entity (asset or finding).
     """
+
     entity_id: str
     entity_type: Literal["asset", "finding"]
-    chokepoint_score: float                    # normalized [0, 1]
-    path_feasibility_criticality: float        # raw RWPC (sum of PathFeasibility)
-    path_count: int                            # number of attack paths through entity
-    unique_entry_points: int                   # explanatory
-    unique_crown_jewels: int                   # explanatory
-    min_path_depth: int                        # explanatory
-    max_path_depth: int                        # explanatory
+    chokepoint_score: float  # normalized [0, 1]
+    path_feasibility_criticality: float  # raw RWPC (sum of PathFeasibility)
+    path_count: int  # number of attack paths through entity
+    unique_entry_points: int  # explanatory
+    unique_crown_jewels: int  # explanatory
+    min_path_depth: int  # explanatory
+    max_path_depth: int  # explanatory
 
     def to_dict(self) -> dict:
         return {
@@ -56,7 +58,8 @@ class ChokepointResult:
     """
     Complete chokepoint analysis result.
     """
-    chokepoints: List[ChokepointDetail]        # sorted by score desc, then entity_id
+
+    chokepoints: list[ChokepointDetail]  # sorted by score desc, then entity_id
     total_entities_analyzed: int
     max_chokepoint_score: float
     total_attack_paths_analyzed: int
@@ -130,16 +133,18 @@ def compute_chokepoints(
         path_feasibility[p.id] = prob / max(cost, EPSILON)
 
     # Aggregate per entity
-    entity_data = defaultdict(lambda: {
-        "entity_type": None,
-        "path_ids": [],
-        "entry_points": set(),
-        "crown_jewels": set(),
-        "depths": [],
-    })
+    entity_data = defaultdict(
+        lambda: {
+            "entity_type": None,
+            "path_ids": [],
+            "entry_points": set(),
+            "crown_jewels": set(),
+            "depths": [],
+        }
+    )
 
     for p in paths:
-        pf = path_feasibility[p.id]
+        path_feasibility[p.id]
         # Use set to ensure each entity is counted at most once per path
         unique_nodes_in_path = set(p.nodes)
         for node_id in unique_nodes_in_path:
@@ -156,8 +161,7 @@ def compute_chokepoints(
 
     # Filter by requested entity_types
     if entity_types != "all":
-        entity_data = {k: v for k, v in entity_data.items()
-                       if v["entity_type"] == entity_types}
+        entity_data = {k: v for k, v in entity_data.items() if v["entity_type"] == entity_types}
 
     # Compute RWPC (path_feasibility_criticality) for each entity
     rwpc_map = {}
@@ -173,17 +177,19 @@ def compute_chokepoints(
         rwpc = rwpc_map[eid]
         score = rwpc / max_rwpc if max_rwpc > 0 else 0.0
 
-        chokepoints.append(ChokepointDetail(
-            entity_id=eid,
-            entity_type=data["entity_type"],
-            chokepoint_score=score,
-            path_feasibility_criticality=rwpc,
-            path_count=len(data["path_ids"]),
-            unique_entry_points=len(data["entry_points"]),
-            unique_crown_jewels=len(data["crown_jewels"]),
-            min_path_depth=min(data["depths"]) if data["depths"] else 0,
-            max_path_depth=max(data["depths"]) if data["depths"] else 0,
-        ))
+        chokepoints.append(
+            ChokepointDetail(
+                entity_id=eid,
+                entity_type=data["entity_type"],
+                chokepoint_score=score,
+                path_feasibility_criticality=rwpc,
+                path_count=len(data["path_ids"]),
+                unique_entry_points=len(data["entry_points"]),
+                unique_crown_jewels=len(data["crown_jewels"]),
+                min_path_depth=min(data["depths"]) if data["depths"] else 0,
+                max_path_depth=max(data["depths"]) if data["depths"] else 0,
+            )
+        )
 
     # Deterministic sort: score desc, then entity_id asc
     chokepoints.sort(key=lambda c: (-c.chokepoint_score, c.entity_id))

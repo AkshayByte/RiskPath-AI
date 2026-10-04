@@ -1,20 +1,21 @@
 """AI and deterministic explanation router."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.core.database import get_db
-from backend.app.models.database import RemediationAction, Scenario
-from backend.app.graph.builder import build_canonical_graph
 from backend.app.analysis import explanation as explanation_mod
-from backend.app.services import explanation_provider as provider_mod
+from backend.app.analysis.budget_optimization import MAX_CANDIDATE_ACTIONS, optimize, resolve_candidates
 from backend.app.analysis.prioritization import OrderingPolicy, compute_prioritization
 from backend.app.analysis.remediation_simulation import resolve_simulation_action, run_simulation
-from backend.app.analysis.budget_optimization import MAX_CANDIDATE_ACTIONS, optimize, resolve_candidates
+from backend.app.core.database import get_db
+from backend.app.graph.builder import build_canonical_graph
+from backend.app.models.database import RemediationAction, Scenario
 from backend.app.schemas.explanation import (
     FindingExplanationRequest,
     OptimizationExplanationRequest,
     SimulationExplanationRequest,
 )
+from backend.app.services import explanation_provider as provider_mod
 
 router = APIRouter(prefix="/api/scenarios/{scenario_id}/explain", tags=["Explanation"])
 
@@ -38,32 +39,23 @@ async def explain(
             typed = FindingExplanationRequest(**request)
         except Exception as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        deterministic, assembled = _explain_finding_evidence(
-            db, scenario_id, typed
-        )
+        deterministic, assembled = _explain_finding_evidence(db, scenario_id, typed)
     elif explanation_type == "simulation":
         try:
             typed = SimulationExplanationRequest(**request)
         except Exception as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        deterministic, assembled = _explain_simulation_evidence(
-            db, scenario_id, typed
-        )
+        deterministic, assembled = _explain_simulation_evidence(db, scenario_id, typed)
     elif explanation_type == "optimization":
         try:
             typed = OptimizationExplanationRequest(**request)
         except Exception as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        deterministic, assembled = _explain_optimization_evidence(
-            db, scenario_id, typed
-        )
+        deterministic, assembled = _explain_optimization_evidence(db, scenario_id, typed)
     else:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Unsupported explanation_type; must be one of "
-                "finding, simulation, optimization"
-            ),
+            detail=("Unsupported explanation_type; must be one of finding, simulation, optimization"),
         )
 
     try:
@@ -116,9 +108,7 @@ def _explain_finding_evidence(db: Session, scenario_id: str, typed: FindingExpla
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    match = next(
-        (r for r in results if r.profile.finding_id == typed.finding_id), None
-    )
+    match = next((r for r in results if r.profile.finding_id == typed.finding_id), None)
     if match is None:
         raise HTTPException(
             status_code=404,
@@ -136,9 +126,7 @@ def _explain_finding_evidence(db: Session, scenario_id: str, typed: FindingExpla
 def _explain_simulation_evidence(db: Session, scenario_id: str, typed: SimulationExplanationRequest):
     """Reconstruct simulation evidence by running the simulation engine."""
     if not typed.remediation_action_ids:
-        raise HTTPException(
-            status_code=400, detail="At least one remediation action is required"
-        )
+        raise HTTPException(status_code=400, detail="At least one remediation action is required")
     if typed.max_depth < 0:
         raise HTTPException(status_code=400, detail="max_depth must be >= 0")
     if typed.max_paths < 0:
@@ -157,11 +145,7 @@ def _explain_simulation_evidence(db: Session, scenario_id: str, typed: Simulatio
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    rows = (
-        db.query(RemediationAction)
-        .filter(RemediationAction.id.in_(typed.remediation_action_ids))
-        .all()
-    )
+    rows = db.query(RemediationAction).filter(RemediationAction.id.in_(typed.remediation_action_ids)).all()
     found_ids = {str(row.id) for row in rows}
     for requested_id in typed.remediation_action_ids:
         if requested_id not in found_ids:
@@ -201,9 +185,7 @@ def _explain_simulation_evidence(db: Session, scenario_id: str, typed: Simulatio
 def _explain_optimization_evidence(db: Session, scenario_id: str, typed: OptimizationExplanationRequest):
     """Reconstruct optimization evidence by running the optimizer."""
     if not typed.candidate_action_ids:
-        raise HTTPException(
-            status_code=400, detail="At least one candidate action is required"
-        )
+        raise HTTPException(status_code=400, detail="At least one candidate action is required")
     if len(typed.candidate_action_ids) > MAX_CANDIDATE_ACTIONS:
         raise HTTPException(
             status_code=400,
@@ -213,20 +195,14 @@ def _explain_optimization_evidence(db: Session, scenario_id: str, typed: Optimiz
             ),
         )
     if len(set(typed.candidate_action_ids)) != len(typed.candidate_action_ids):
-        raise HTTPException(
-            status_code=400, detail="Duplicate candidate_action_ids are not allowed"
-        )
+        raise HTTPException(status_code=400, detail="Duplicate candidate_action_ids are not allowed")
     if typed.budget < 0:
         raise HTTPException(status_code=400, detail="budget must be >= 0")
     if typed.max_depth < 0:
         raise HTTPException(status_code=400, detail="max_depth must be >= 0")
     if typed.max_paths < 0:
         raise HTTPException(status_code=400, detail="max_paths must be >= 0")
-    rows = (
-        db.query(RemediationAction)
-        .filter(RemediationAction.id.in_(typed.candidate_action_ids))
-        .all()
-    )
+    rows = db.query(RemediationAction).filter(RemediationAction.id.in_(typed.candidate_action_ids)).all()
     found_ids = {str(row.id) for row in rows}
     for requested_id in typed.candidate_action_ids:
         if requested_id not in found_ids:

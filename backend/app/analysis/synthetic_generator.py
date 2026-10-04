@@ -2,20 +2,36 @@
 Synthetic attack topology generator for stress-testing and large-scale scenarios (10-500 nodes).
 Fully deterministic and reproducible using isolated random.Random(seed).
 """
+
 import random
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from backend.app.models.database import (
-    Asset, AssetType, Environment, NetworkZone,
-    Vulnerability, VulnerabilitySeverity, AttackVector, AttackComplexity,
-    PrivilegesRequired, UserInteraction, Finding, FindingStatus,
-    Edge, EdgeType, RemediationAction, RemediationActionType, Scenario,
+    Asset,
+    AssetType,
+    AttackComplexity,
+    AttackVector,
+    Edge,
+    EdgeType,
+    Environment,
+    Finding,
+    FindingStatus,
+    NetworkZone,
+    PrivilegesRequired,
+    RemediationAction,
+    RemediationActionType,
+    Scenario,
+    UserInteraction,
+    Vulnerability,
+    VulnerabilitySeverity,
 )
 
 
 class ScenarioExistsError(ValueError):
     """Raised when trying to generate a scenario whose ID already exists and overwrite is False."""
+
     pass
 
 
@@ -28,14 +44,14 @@ def generate_synthetic_scenario(
     crown_jewel_ratio: float = 0.08,
     seed: int = 42,
     overwrite: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate a realistic, large-scale multi-tier network topology.
     Deterministic and reproducible via isolated RNG instance.
     """
     asset_count = max(10, min(500, asset_count))
     rng = random.Random(seed)
-    
+
     existing = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if existing:
         if not overwrite:
@@ -51,32 +67,38 @@ def generate_synthetic_scenario(
     scenario = Scenario(
         id=scenario_id,
         name=name or f"Synthetic Enterprise ({asset_count} Assets)",
-        description=f"Automated synthetic benchmark scenario with {asset_count} nodes, seed={seed}."
+        description=f"Automated synthetic benchmark scenario with {asset_count} nodes, seed={seed}.",
     )
     db.add(scenario)
 
     zones = [NetworkZone.DMZ, NetworkZone.APP_TIER, NetworkZone.DB_TIER, NetworkZone.MANAGEMENT]
-    types = [AssetType.WEB_SERVER, AssetType.APP_SERVER, AssetType.DATABASE, AssetType.API_GATEWAY, AssetType.WORKSTATION]
-    
+    types = [
+        AssetType.WEB_SERVER,
+        AssetType.APP_SERVER,
+        AssetType.DATABASE,
+        AssetType.API_GATEWAY,
+        AssetType.WORKSTATION,
+    ]
+
     num_entry = max(1, round(asset_count * entry_point_ratio))
     num_crown = max(1, round(asset_count * crown_jewel_ratio))
-    
+
     # Guarantee at least some intermediate nodes
     if num_entry + num_crown >= asset_count:
         num_entry = max(1, asset_count // 4)
         num_crown = max(1, asset_count // 4)
 
     # 1. Create Assets
-    created_assets: List[Asset] = []
+    created_assets: list[Asset] = []
     for i in range(asset_count):
         is_entry = i < num_entry
         is_crown = not is_entry and (i >= asset_count - num_crown)
         zone = NetworkZone.DMZ if is_entry else (NetworkZone.DB_TIER if is_crown else rng.choice(zones))
         a_type = AssetType.WEB_SERVER if is_entry else (AssetType.DATABASE if is_crown else rng.choice(types))
-        
+
         asset = Asset(
-            id=f"{scenario_id}-asset-{i+1:03d}",
-            name=f"Host-{i+1:03d} ({zone.value.upper()})",
+            id=f"{scenario_id}-asset-{i + 1:03d}",
+            name=f"Host-{i + 1:03d} ({zone.value.upper()})",
             type=a_type,
             criticality=10.0 if is_crown else (8.0 if is_entry else round(rng.uniform(4.0, 9.0), 1)),
             environment=Environment.PRODUCTION,
@@ -85,7 +107,7 @@ def generate_synthetic_scenario(
             is_crown_jewel=is_crown,
             owner="SecOps",
             ip_address=f"10.{10 + (i // 254)}.{1 + (i % 254)}.{i % 250 + 1}",
-            description=f"Auto-generated tier asset {i+1}",
+            description=f"Auto-generated tier asset {i + 1}",
             scenario_id=scenario_id,
         )
         created_assets.append(asset)
@@ -93,7 +115,7 @@ def generate_synthetic_scenario(
     db.flush()
 
     # 2. Create Common Vulnerability Pool
-    vuln_pool: List[Vulnerability] = []
+    vuln_pool: list[Vulnerability] = []
     cve_templates = [
         ("CVE-2024-3094", "XZ Utils Backdoor RCE", 10.0, VulnerabilitySeverity.CRITICAL, True, 0.95),
         ("CVE-2023-38606", "Kernel Privilege Escalation", 8.8, VulnerabilitySeverity.HIGH, True, 0.75),
@@ -106,7 +128,7 @@ def generate_synthetic_scenario(
     ]
     for idx, (cve, title, cvss, sev, kev, epss) in enumerate(cve_templates):
         v = Vulnerability(
-            id=f"{scenario_id}-vuln-{idx+1:02d}",
+            id=f"{scenario_id}-vuln-{idx + 1:02d}",
             cve_id=cve,
             title=title,
             description=f"Simulated weakness modeled after {cve}",
@@ -125,8 +147,8 @@ def generate_synthetic_scenario(
     db.flush()
 
     # 3. Assign Findings to Assets & Construct Topology Edges
-    created_findings: List[Finding] = []
-    created_edges: List[Edge] = []
+    created_findings: list[Finding] = []
+    created_edges: list[Edge] = []
     edge_counter = 1
     finding_counter = 1
 
@@ -215,7 +237,7 @@ def generate_synthetic_scenario(
     db.flush()
 
     # 4. Create Remediation Actions for findings & high-cost edges
-    created_actions: List[RemediationAction] = []
+    created_actions: list[RemediationAction] = []
     for f in created_findings[:12]:
         act = RemediationAction(
             id=f"{scenario_id}-rem-{f.id}",

@@ -13,12 +13,13 @@ This module contains NO model calls and NO security calculations. It:
 
 All prose generated from these helpers is informational only.
 """
+
 from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Literal
 
 ClaimType = Literal["FACT", "INTERPRETATION", "LIMITATION"]
 
@@ -57,7 +58,7 @@ class EvidenceRef:
     source_path: str
     value: Any
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "ref_id": self.ref_id,
             "source_path": self.source_path,
@@ -69,9 +70,9 @@ class EvidenceRef:
 class ExplanationClaim:
     type: ClaimType
     statement: str
-    evidence_refs: List[EvidenceRef]
+    evidence_refs: list[EvidenceRef]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "statement": self.statement,
@@ -82,9 +83,9 @@ class ExplanationClaim:
 @dataclass
 class ExplanationSummary:
     statement: str
-    evidence_refs: List[EvidenceRef]
+    evidence_refs: list[EvidenceRef]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "statement": self.statement,
             "evidence_refs": [r.to_dict() for r in self.evidence_refs],
@@ -94,10 +95,10 @@ class ExplanationSummary:
 @dataclass
 class AssembledEvidence:
     explanation_type: str
-    payload: Dict[str, Any]
-    refs: List[EvidenceRef]
+    payload: dict[str, Any]
+    refs: list[EvidenceRef]
 
-    def refs_by_id(self) -> Dict[str, EvidenceRef]:
+    def refs_by_id(self) -> dict[str, EvidenceRef]:
         return {r.ref_id: r for r in self.refs}
 
 
@@ -105,7 +106,7 @@ class RefRegistry:
     """Assigns E1, E2, ... in deterministic assembly order."""
 
     def __init__(self) -> None:
-        self._refs: List[EvidenceRef] = []
+        self._refs: list[EvidenceRef] = []
 
     def add(self, source_path: str, value: Any) -> EvidenceRef:
         ref = EvidenceRef(
@@ -116,7 +117,7 @@ class RefRegistry:
         self._refs.append(ref)
         return ref
 
-    def all(self) -> List[EvidenceRef]:
+    def all(self) -> list[EvidenceRef]:
         return list(self._refs)
 
 
@@ -142,34 +143,23 @@ def resolve_source_path(evidence: Any, path: str) -> Any:
                 raise ValueError(f"source_path '{path}' has unknown field '{name}'")
             current = current[name]
         else:
-            raise ValueError(
-                f"source_path '{path}' cannot access field '{name}' "
-                f"on non-object value"
-            )
+            raise ValueError(f"source_path '{path}' cannot access field '{name}' on non-object value")
         if index is not None:
             key = index.strip().strip("'\"")
             if isinstance(current, list):
                 try:
                     position = int(key)
                 except ValueError:
-                    raise ValueError(
-                        f"source_path '{path}' uses non-integer index '{key}'"
-                    ) from None
+                    raise ValueError(f"source_path '{path}' uses non-integer index '{key}'") from None
                 if position < 0 or position >= len(current):
-                    raise ValueError(
-                        f"source_path '{path}' index {position} out of range"
-                    )
+                    raise ValueError(f"source_path '{path}' index {position} out of range")
                 current = current[position]
             elif isinstance(current, dict):
                 if key not in current:
-                    raise ValueError(
-                        f"source_path '{path}' has unknown key '{key}'"
-                    )
+                    raise ValueError(f"source_path '{path}' has unknown key '{key}'")
                 current = current[key]
             else:
-                raise ValueError(
-                    f"source_path '{path}' cannot index into scalar value"
-                )
+                raise ValueError(f"source_path '{path}' cannot index into scalar value")
     # Ensure the whole string was consumed by valid tokens.
     joined = ".".join(m.group(0) for m in _TOKEN.finditer(path))
     if joined != path:
@@ -221,13 +211,13 @@ _FINDING_FIELDS = (
 )
 
 
-def _take(source: Dict[str, Any], fields: Tuple[str, ...]) -> Dict[str, Any]:
+def _take(source: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
     return {name: source.get(name) for name in fields}
 
 
-def _deltas_map(deltas: list) -> Dict[str, Any]:
+def _deltas_map(deltas: list) -> dict[str, Any]:
     """Index delta entries by metric name for stable map-style references."""
-    indexed: Dict[str, Any] = {}
+    indexed: dict[str, Any] = {}
     for entry in deltas:
         name = entry.get("metric_name")
         indexed[str(name)] = {
@@ -239,10 +229,10 @@ def _deltas_map(deltas: list) -> Dict[str, Any]:
     return indexed
 
 
-def assemble_finding_evidence(result: Dict[str, Any]) -> AssembledEvidence:
+def assemble_finding_evidence(result: dict[str, Any]) -> AssembledEvidence:
     """Assemble minimized finding evidence from a PrioritizationResult dict."""
     profile = result.get("profile", {})
-    payload: Dict[str, Any] = _take(profile, _FINDING_FIELDS)
+    payload: dict[str, Any] = _take(profile, _FINDING_FIELDS)
     payload["operational_rank"] = result.get("operational_rank")
     payload["operational_score"] = result.get("operational_score")
     ordering = result.get("ordering_keys", {})
@@ -275,14 +265,12 @@ def assemble_finding_evidence(result: Dict[str, Any]) -> AssembledEvidence:
         "baseline_is_entry_point",
     ):
         registry.add(key, payload.get(key))
-    return AssembledEvidence(
-        explanation_type="finding", payload=payload, refs=registry.all()
-    )
+    return AssembledEvidence(explanation_type="finding", payload=payload, refs=registry.all())
 
 
-def assemble_simulation_evidence(result: Dict[str, Any]) -> AssembledEvidence:
+def assemble_simulation_evidence(result: dict[str, Any]) -> AssembledEvidence:
     """Assemble minimized simulation evidence from a SimulationResult dict."""
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "action_ids": list(result.get("action_ids", [])),
         "applied_actions": [
             {
@@ -326,14 +314,12 @@ def assemble_simulation_evidence(result: Dict[str, Any]) -> AssembledEvidence:
         registry.add(f"remediated_findings[{index}]", finding_id)
     registry.add("baseline.total_attack_paths", payload["baseline"].get("total_attack_paths"))
     registry.add("final.total_attack_paths", payload["final"].get("total_attack_paths"))
-    return AssembledEvidence(
-        explanation_type="simulation", payload=payload, refs=registry.all()
-    )
+    return AssembledEvidence(explanation_type="simulation", payload=payload, refs=registry.all())
 
 
-def assemble_optimization_evidence(result: Dict[str, Any]) -> AssembledEvidence:
+def assemble_optimization_evidence(result: dict[str, Any]) -> AssembledEvidence:
     """Assemble minimized optimization evidence from an OptimizationResult dict."""
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "budget": result.get("budget"),
         "objective": result.get("objective"),
         "candidates": [
@@ -376,9 +362,7 @@ def assemble_optimization_evidence(result: Dict[str, Any]) -> AssembledEvidence:
         registry.add(f"selected_action_ids[{index}]", action_id)
     for index, candidate in enumerate(payload["candidates"]):
         registry.add(f"candidates[{index}]", candidate.get("action_id"))
-    return AssembledEvidence(
-        explanation_type="optimization", payload=payload, refs=registry.all()
-    )
+    return AssembledEvidence(explanation_type="optimization", payload=payload, refs=registry.all())
 
 
 # ---------------------------------------------------------------------------
@@ -386,9 +370,9 @@ def assemble_optimization_evidence(result: Dict[str, Any]) -> AssembledEvidence:
 # ---------------------------------------------------------------------------
 
 
-def _statement_numbers(statement: str) -> List[Tuple[float, bool]]:
+def _statement_numbers(statement: str) -> list[tuple[float, bool]]:
     """Extract (number, had_percent) tokens, skipping identifier fragments."""
-    found: List[Tuple[float, bool]] = []
+    found: list[tuple[float, bool]] = []
     for match in _NUMBER_TOKEN.finditer(statement):
         raw, percent = match.group(1), match.group(2)
         try:
@@ -413,12 +397,12 @@ def _number_matches_claim(value: Any, number: float, had_percent: bool) -> bool:
 
 
 def validate_claims(
-    claims: List[Dict[str, Any]],
-    refs_by_id: Dict[str, EvidenceRef],
-    evidence_payload: Dict[str, Any],
-) -> List[str]:
+    claims: list[dict[str, Any]],
+    refs_by_id: dict[str, EvidenceRef],
+    evidence_payload: dict[str, Any],
+) -> list[str]:
     """Validate structured claims. Returns a list of error strings (empty = valid)."""
-    errors: List[str] = []
+    errors: list[str] = []
     for index, claim in enumerate(claims):
         where = f"claim[{index}]"
         claim_type = claim.get("type")
@@ -436,12 +420,12 @@ def validate_claims(
         if claim_type in REF_REQUIRED_TYPES and not ref_ids:
             errors.append(f"{where}: {claim_type} requires at least one evidence reference")
             continue
-        lowered = statement.lower()
+        statement.lower()
         for pattern in PROHIBITED_PATTERNS:
             if re.search(pattern, statement, re.IGNORECASE):
                 errors.append(f"{where}: prohibited claim pattern {pattern!r}")
                 break
-        cited_values: List[Any] = []
+        cited_values: list[Any] = []
         for ref_id in ref_ids:
             ref = refs_by_id.get(ref_id)
             if ref is None:
@@ -457,19 +441,13 @@ def validate_claims(
                 and isinstance(ref.value, float)
                 and math.isclose(resolved, ref.value, rel_tol=1e-12)
             ):
-                errors.append(
-                    f"{where}: reference {ref_id!r} value does not match evidence"
-                )
+                errors.append(f"{where}: reference {ref_id!r} value does not match evidence")
                 continue
             cited_values.append(resolved)
         if claim_type == "FACT":
             for number, had_percent in _statement_numbers(statement):
-                if not any(
-                    _number_matches_claim(v, number, had_percent) for v in cited_values
-                ):
-                    errors.append(
-                        f"{where}: numeric value {number} has no corresponding evidence reference"
-                    )
+                if not any(_number_matches_claim(v, number, had_percent) for v in cited_values):
+                    errors.append(f"{where}: numeric value {number} has no corresponding evidence reference")
                     break
     return errors
 
@@ -484,10 +462,10 @@ class StructuredPrompt:
     system_instructions: str
     grounding_rules: str
     evidence_data: str
-    user_question: Optional[str]
-    evidence_refs: List[EvidenceRef]
+    user_question: str | None
+    evidence_refs: list[EvidenceRef]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "system_instructions": self.system_instructions,
             "grounding_rules": self.grounding_rules,
@@ -515,7 +493,7 @@ GROUNDING_RULES = (
 
 def build_prompt(
     assembled: AssembledEvidence,
-    user_question: Optional[str] = None,
+    user_question: str | None = None,
 ) -> StructuredPrompt:
     """Build the provider prompt with fixed section order and DATA delimiters."""
     import json as _json
@@ -551,8 +529,8 @@ def build_prompt(
 # ---------------------------------------------------------------------------
 
 
-def _draft_claims(draft: Dict[str, Any]) -> List[Dict[str, Any]]:
-    claims: List[Dict[str, Any]] = []
+def _draft_claims(draft: dict[str, Any]) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
     for section in ("key_factors", "impact", "changes", "limitations"):
         items = draft.get(section, [])
         if isinstance(items, list):
@@ -572,8 +550,8 @@ def _draft_claims(draft: Dict[str, Any]) -> List[Dict[str, Any]]:
 def explain_with_provider(
     assembled: AssembledEvidence,
     provider: Any,
-    user_question: Optional[str] = None,
-) -> Tuple[Dict[str, Any], str, str]:
+    user_question: str | None = None,
+) -> tuple[dict[str, Any], str, str]:
     """Run provider draft through validation, with deterministic fallback.
 
     Returns (explanation_dict, status, origin) where status is one of
@@ -582,9 +560,7 @@ def explain_with_provider(
     """
     from backend.app.services import explanation_provider as provider_mod
 
-    fallback_names = (
-        getattr(provider_mod, "DeterministicFallbackProvider", None),
-    )
+    fallback_names = (getattr(provider_mod, "DeterministicFallbackProvider", None),)
     if isinstance(provider, fallback_names):
         rendered = render_fallback(assembled)
         return (
@@ -630,29 +606,22 @@ def explain_with_provider(
     )
 
 
-def _finalize_explanation(
-    assembled: AssembledEvidence, draft: Dict[str, Any]
-) -> Dict[str, Any]:
-    def _claims(items: Any) -> List[Dict[str, Any]]:
-        out: List[Dict[str, Any]] = []
+def _finalize_explanation(assembled: AssembledEvidence, draft: dict[str, Any]) -> dict[str, Any]:
+    def _claims(items: Any) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
         for item in items or []:
             refs = item.get("evidence_refs", [])
             out.append(
                 {
                     "type": item.get("type"),
                     "statement": item.get("statement"),
-                    "evidence_refs": [
-                        _ref_to_dict(assembled, r) for r in refs
-                    ],
+                    "evidence_refs": [_ref_to_dict(assembled, r) for r in refs],
                 }
             )
         return out
 
     summary = draft.get("summary", {}) or {}
-    summary_refs = [
-        _ref_to_dict(assembled, r)
-        for r in summary.get("evidence_refs", [])
-    ]
+    summary_refs = [_ref_to_dict(assembled, r) for r in summary.get("evidence_refs", [])]
     return {
         "summary": {
             "statement": summary.get("statement", ""),
@@ -665,14 +634,14 @@ def _finalize_explanation(
     }
 
 
-def _ref_to_dict(assembled: AssembledEvidence, ref_id: str) -> Dict[str, Any]:
+def _ref_to_dict(assembled: AssembledEvidence, ref_id: str) -> dict[str, Any]:
     ref = assembled.refs_by_id().get(ref_id)
     if ref is None:
         raise ValueError(f"unknown evidence reference {ref_id!r}")
     return ref.to_dict()
 
 
-def _empty_explanation(assembled: AssembledEvidence) -> Dict[str, Any]:
+def _empty_explanation(assembled: AssembledEvidence) -> dict[str, Any]:
     _ = assembled
     return {
         "summary": {"statement": "", "evidence_refs": []},
@@ -683,9 +652,7 @@ def _empty_explanation(assembled: AssembledEvidence) -> Dict[str, Any]:
     }
 
 
-def _claim(
-    claim_type: str, statement: str, refs: List[EvidenceRef]
-) -> Dict[str, Any]:
+def _claim(claim_type: str, statement: str, refs: list[EvidenceRef]) -> dict[str, Any]:
     return {
         "type": claim_type,
         "statement": statement,
@@ -693,12 +660,12 @@ def _claim(
     }
 
 
-def render_fallback(assembled: AssembledEvidence) -> Dict[str, Any]:
+def render_fallback(assembled: AssembledEvidence) -> dict[str, Any]:
     """Render a deterministic fallback explanation from assembled evidence."""
     by_path = {r.source_path: r for r in assembled.refs}
     payload = assembled.payload
 
-    def pick(*paths: str) -> List[EvidenceRef]:
+    def pick(*paths: str) -> list[EvidenceRef]:
         return [by_path[p] for p in paths if p in by_path]
 
     if assembled.explanation_type == "finding":
@@ -736,9 +703,7 @@ def render_fallback(assembled: AssembledEvidence) -> Dict[str, Any]:
             )
         ]
     elif assembled.explanation_type == "simulation":
-        summary_refs = pick(
-            "baseline.total_attack_paths", "final.total_attack_paths"
-        )
+        summary_refs = pick("baseline.total_attack_paths", "final.total_attack_paths")
         summary = {
             "statement": (
                 f"Simulation applied {len(payload.get('applied_actions', []))} "
@@ -748,11 +713,7 @@ def render_fallback(assembled: AssembledEvidence) -> Dict[str, Any]:
             ),
             "evidence_refs": [r.ref_id for r in summary_refs],
         }
-        remediated_refs = [
-            r
-            for r in assembled.refs
-            if r.source_path.startswith("remediated_findings[")
-        ]
+        remediated_refs = [r for r in assembled.refs if r.source_path.startswith("remediated_findings[")]
         key_factors = (
             [
                 _claim(
@@ -766,11 +727,7 @@ def render_fallback(assembled: AssembledEvidence) -> Dict[str, Any]:
                 _claim(
                     "FACT",
                     f"Applied actions: {[a.get('action_id') for a in payload.get('applied_actions', [])]}.",
-                    [
-                        r
-                        for r in assembled.refs
-                        if r.source_path.startswith("applied_actions[")
-                    ],
+                    [r for r in assembled.refs if r.source_path.startswith("applied_actions[")],
                 )
             ]
         )
@@ -816,15 +773,14 @@ def render_fallback(assembled: AssembledEvidence) -> Dict[str, Any]:
             )
         ]
 
-    limitations: List[Dict[str, Any]] = []
+    limitations: list[dict[str, Any]] = []
     if assembled.explanation_type == "finding" and not payload.get("epss_available"):
         epss_refs = [r.ref_id for r in pick("epss_available")]
         limitations.append(
             {
                 "type": "LIMITATION",
                 "statement": (
-                    "EPSS data was unavailable in the supplied evidence, "
-                    "so no EPSS-based explanation is provided."
+                    "EPSS data was unavailable in the supplied evidence, so no EPSS-based explanation is provided."
                 ),
                 "evidence_refs": epss_refs,
             }

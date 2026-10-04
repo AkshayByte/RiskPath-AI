@@ -1,15 +1,14 @@
 """
 Pydantic schemas for RemediationAction entity.
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
-from backend.app.models.database import RemediationActionType
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class RemediationActionTypeEnum(str, Enum):
+class RemediationActionTypeEnum(StrEnum):
     PATCH_VULNERABILITY = "PATCH_VULNERABILITY"
     REMOVE_VULNERABILITY = "REMOVE_VULNERABILITY"
     DISABLE_SERVICE = "DISABLE_SERVICE"
@@ -26,9 +25,9 @@ class RemediationActionBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
     action_type: RemediationActionTypeEnum
-    target_asset_id: Optional[str] = Field(None, max_length=100)
-    target_finding_id: Optional[str] = Field(None, max_length=100)
-    target_edge_id: Optional[str] = Field(None, max_length=100)
+    target_asset_id: str | None = Field(None, max_length=100)
+    target_finding_id: str | None = Field(None, max_length=100)
+    target_edge_id: str | None = Field(None, max_length=100)
     estimated_cost: float = Field(..., ge=0.0)
     implementation_complexity: str = Field(..., pattern="^(LOW|MEDIUM|HIGH)$")
     downtime_required: bool = False
@@ -39,15 +38,15 @@ class RemediationActionCreate(RemediationActionBase):
 
 
 class RemediationActionUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, min_length=1)
-    action_type: Optional[RemediationActionTypeEnum] = None
-    target_asset_id: Optional[str] = Field(None, max_length=100)
-    target_finding_id: Optional[str] = Field(None, max_length=100)
-    target_edge_id: Optional[str] = Field(None, max_length=100)
-    estimated_cost: Optional[float] = Field(None, ge=0.0)
-    implementation_complexity: Optional[str] = Field(None, pattern="^(LOW|MEDIUM|HIGH)$")
-    downtime_required: Optional[bool] = None
+    title: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, min_length=1)
+    action_type: RemediationActionTypeEnum | None = None
+    target_asset_id: str | None = Field(None, max_length=100)
+    target_finding_id: str | None = Field(None, max_length=100)
+    target_edge_id: str | None = Field(None, max_length=100)
+    estimated_cost: float | None = Field(None, ge=0.0)
+    implementation_complexity: str | None = Field(None, pattern="^(LOW|MEDIUM|HIGH)$")
+    downtime_required: bool | None = None
 
 
 class RemediationActionResponse(RemediationActionBase):

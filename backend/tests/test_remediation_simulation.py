@@ -5,6 +5,7 @@ Unit tests use small in-memory MultiDiGraphs mirroring the canonical
 builder output. API tests use the real FastAPI app and seed scenario,
 creating temporary RemediationAction rows cleaned up after each test.
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -16,61 +17,104 @@ from fastapi.testclient import TestClient
 from backend.app.analysis import remediation_simulation as sim
 from backend.app.main import app
 
-
 client = TestClient(app)
 
 
 def make_graph() -> nx.MultiDiGraph:
     graph = nx.MultiDiGraph()
     graph.add_node(
-        "asset-web-01", type="asset", criticality=8.0,
-        is_entry_point=True, is_crown_jewel=False, network_zone="dmz",
+        "asset-web-01",
+        type="asset",
+        criticality=8.0,
+        is_entry_point=True,
+        is_crown_jewel=False,
+        network_zone="dmz",
     )
     graph.add_node(
-        "asset-app-01", type="asset", criticality=9.0,
-        is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
+        "asset-app-01",
+        type="asset",
+        criticality=9.0,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
     )
     graph.add_node(
-        "asset-db-01", type="asset", criticality=10.0,
-        is_entry_point=False, is_crown_jewel=True, network_zone="db_tier",
+        "asset-db-01",
+        type="asset",
+        criticality=10.0,
+        is_entry_point=False,
+        is_crown_jewel=True,
+        network_zone="db_tier",
     )
     graph.add_node(
-        "vuln-1", type="vulnerability", cvss_score=9.8,
-        epss_score=0.85, known_exploited=True,
+        "vuln-1",
+        type="vulnerability",
+        cvss_score=9.8,
+        epss_score=0.85,
+        known_exploited=True,
     )
     graph.add_node(
-        "vuln-2", type="vulnerability", cvss_score=8.2,
-        epss_score=0.65, known_exploited=False,
+        "vuln-2",
+        type="vulnerability",
+        cvss_score=8.2,
+        epss_score=0.65,
+        known_exploited=False,
     )
     graph.add_node(
-        "finding-01", type="finding", asset_id="asset-web-01",
-        vulnerability_id="vuln-1", status="active",
+        "finding-01",
+        type="finding",
+        asset_id="asset-web-01",
+        vulnerability_id="vuln-1",
+        status="active",
     )
     graph.add_node(
-        "finding-02", type="finding", asset_id="asset-app-01",
-        vulnerability_id="vuln-2", status="active",
+        "finding-02",
+        type="finding",
+        asset_id="asset-app-01",
+        vulnerability_id="vuln-2",
+        status="active",
     )
     graph.add_edge(
-        "asset-web-01", "finding-01", edge_id="edge-web-to-finding1",
-        edge_type="CAN_REACH", traversal_cost=1.0, probability=0.9,
+        "asset-web-01",
+        "finding-01",
+        edge_id="edge-web-to-finding1",
+        edge_type="CAN_REACH",
+        traversal_cost=1.0,
+        probability=0.9,
     )
     graph.add_edge(
-        "finding-01", "asset-app-01", edge_id="edge-finding1-to-app",
-        edge_type="EXPLOITS", traversal_cost=2.0, probability=0.7,
+        "finding-01",
+        "asset-app-01",
+        edge_id="edge-finding1-to-app",
+        edge_type="EXPLOITS",
+        traversal_cost=2.0,
+        probability=0.7,
         finding_id="finding-01",
     )
     graph.add_edge(
-        "asset-app-01", "finding-02", edge_id="edge-app-to-finding2",
-        edge_type="CAN_REACH", traversal_cost=1.0, probability=0.8,
+        "asset-app-01",
+        "finding-02",
+        edge_id="edge-app-to-finding2",
+        edge_type="CAN_REACH",
+        traversal_cost=1.0,
+        probability=0.8,
     )
     graph.add_edge(
-        "finding-02", "asset-db-01", edge_id="edge-finding2-to-db",
-        edge_type="EXPLOITS", traversal_cost=2.5, probability=0.6,
+        "finding-02",
+        "asset-db-01",
+        edge_id="edge-finding2-to-db",
+        edge_type="EXPLOITS",
+        traversal_cost=2.5,
+        probability=0.6,
         finding_id="finding-02",
     )
     graph.add_edge(
-        "asset-web-01", "asset-db-01", edge_id="edge-direct-web-to-db",
-        edge_type="CAN_REACH", traversal_cost=3.0, probability=0.3,
+        "asset-web-01",
+        "asset-db-01",
+        edge_id="edge-direct-web-to-db",
+        edge_type="CAN_REACH",
+        traversal_cost=3.0,
+        probability=0.3,
     )
     return graph
 
@@ -98,6 +142,7 @@ def run(actions, graph=None, **kwargs):
 
 
 # ----------------------------- MVP mutations -----------------------------
+
 
 def test_patch_finding_removes_node():
     graph = make_graph()
@@ -150,9 +195,7 @@ def test_restrict_port_explicit_edge():
 
 def test_isolate_asset_removes_asset_not_findings():
     graph = make_graph()
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1"
-    )
+    action = sim.resolve_simulation_action(fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     # Findings hosted on the asset are NOT remediated
     assert "finding-02" not in result.remediated_findings
@@ -168,9 +211,7 @@ def test_isolate_asset_mutation_semantics():
     from backend.app.analysis import prioritization as pz
 
     graph = make_graph()
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1"
-    )
+    action = sim.resolve_simulation_action(fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1")
     assert "asset-app-01" in graph.nodes
     assert "finding-02" in graph.nodes
     copied = sim.copy_simulation_graph(graph)
@@ -184,9 +225,7 @@ def test_isolate_asset_mutation_semantics():
     results = pz.compute_prioritization(
         copied,
         scenario_id="s1",
-        baseline_asset_context={
-            "asset-app-01": dict(graph.nodes["asset-app-01"])
-        },
+        baseline_asset_context={"asset-app-01": dict(graph.nodes["asset-app-01"])},
     )
     assert {r.profile.finding_id for r in results} == {"finding-01", "finding-02"}
 
@@ -198,15 +237,11 @@ def test_orphaned_finding_uses_baseline_asset_context():
 
     graph = make_graph()
     baseline_asset = dict(graph.nodes["asset-app-01"])
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1"
-    )
+    action = sim.resolve_simulation_action(fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     assert "finding-02" not in result.remediated_findings
 
-    f2_final = next(
-        r for r in result.overall_rank_comparison if r.finding_id == "finding-02"
-    )
+    f2_final = next(r for r in result.overall_rank_comparison if r.finding_id == "finding-02")
     assert f2_final.status == "ACTIVE"
     assert f2_final.simulated_rank is not None
 
@@ -249,9 +284,7 @@ def test_isolated_entry_point_loses_entry_tier():
     graph = make_graph()
     baseline_web = dict(graph.nodes["asset-web-01"])
     assert baseline_web["is_entry_point"] is True
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-web-01"), "s1"
-    )
+    action = sim.resolve_simulation_action(fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-web-01"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     assert "finding-01" not in result.remediated_findings
 
@@ -302,6 +335,7 @@ def test_missing_asset_without_context_still_raises():
 
 # ----------------------------- validation -----------------------------
 
+
 @pytest.mark.parametrize(
     "action_type",
     [
@@ -314,9 +348,7 @@ def test_missing_asset_without_context_still_raises():
 )
 def test_deferred_action_rejected(action_type):
     with pytest.raises(ValueError, match="Unsupported remediation action type"):
-        sim.resolve_simulation_action(
-            fake_action("a1", action_type, target_finding_id="finding-01"), "s1"
-        )
+        sim.resolve_simulation_action(fake_action("a1", action_type, target_finding_id="finding-01"), "s1")
 
 
 def test_invalid_target_type():
@@ -329,9 +361,7 @@ def test_invalid_target_type():
 
 def test_missing_target():
     with pytest.raises(ValueError, match="has no target"):
-        sim.resolve_simulation_action(
-            fake_action("a1", "PATCH_VULNERABILITY"), "s1"
-        )
+        sim.resolve_simulation_action(fake_action("a1", "PATCH_VULNERABILITY"), "s1")
 
 
 def test_multiple_targets():
@@ -349,17 +379,17 @@ def test_multiple_targets():
 
 def test_unknown_action_type():
     with pytest.raises(ValueError, match="Unknown remediation action type"):
-        sim.resolve_simulation_action(
-            fake_action("a1", "BOGUS_ACTION", target_finding_id="finding-01"), "s1"
-        )
+        sim.resolve_simulation_action(fake_action("a1", "BOGUS_ACTION", target_finding_id="finding-01"), "s1")
 
 
 def test_cross_scenario_action():
     with pytest.raises(ValueError, match="does not belong to scenario"):
         sim.resolve_simulation_action(
             fake_action(
-                "a1", "PATCH_VULNERABILITY",
-                target_finding_id="finding-01", scenario_id="other",
+                "a1",
+                "PATCH_VULNERABILITY",
+                target_finding_id="finding-01",
+                scenario_id="other",
             ),
             "s1",
         )
@@ -403,15 +433,12 @@ def test_zero_delta_valid_action():
     # Isolated graph: patching the only finding changes nothing measurable
     # except the finding itself; must still succeed.
     graph = nx.MultiDiGraph()
-    graph.add_node("a1", type="asset", criticality=5.0,
-                   is_entry_point=False, is_crown_jewel=False, network_zone="app_tier")
-    graph.add_node("v1", type="vulnerability", cvss_score=5.0,
-                   epss_score=None, known_exploited=False)
-    graph.add_node("f1", type="finding", asset_id="a1",
-                   vulnerability_id="v1", status="active")
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "PATCH_VULNERABILITY", target_finding_id="f1"), "s1"
+    graph.add_node(
+        "a1", type="asset", criticality=5.0, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier"
     )
+    graph.add_node("v1", type="vulnerability", cvss_score=5.0, epss_score=None, known_exploited=False)
+    graph.add_node("f1", type="finding", asset_id="a1", vulnerability_id="v1", status="active")
+    action = sim.resolve_simulation_action(fake_action("a1", "PATCH_VULNERABILITY", target_finding_id="f1"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     assert result.final.total_attack_paths == 0
     assert result.baseline.total_attack_paths == 0
@@ -420,17 +447,13 @@ def test_zero_delta_valid_action():
 def test_graph_deepcopy_immutability():
     graph = make_graph()
     before_nodes = sorted(graph.nodes)
-    before_edges = sorted(
-        (u, v, k, tuple(sorted(d.items()))) for u, v, k, d in graph.edges(keys=True, data=True)
-    )
+    before_edges = sorted((u, v, k, tuple(sorted(d.items()))) for u, v, k, d in graph.edges(keys=True, data=True))
     action = sim.resolve_simulation_action(
         fake_action("a1", "PATCH_VULNERABILITY", target_finding_id="finding-01"), "s1"
     )
     sim.run_simulation(graph, [action], scenario_id="s1")
     after_nodes = sorted(graph.nodes)
-    after_edges = sorted(
-        (u, v, k, tuple(sorted(d.items()))) for u, v, k, d in graph.edges(keys=True, data=True)
-    )
+    after_edges = sorted((u, v, k, tuple(sorted(d.items()))) for u, v, k, d in graph.edges(keys=True, data=True))
     assert before_nodes == after_nodes
     assert before_edges == after_edges
 
@@ -477,9 +500,7 @@ def test_multi_action_incremental_effectiveness():
     # Step 2 removes the indirect path too
     assert result.final.total_attack_paths == 0
     # Overall delta spans baseline -> final
-    overall = next(
-        d for d in result.overall_deltas if d.metric_name == "total_attack_paths"
-    )
+    overall = next(d for d in result.overall_deltas if d.metric_name == "total_attack_paths")
     assert overall.before == result.baseline.total_attack_paths
     assert overall.after == 0.0
 
@@ -497,9 +518,7 @@ def test_fixed_blast_sources_survive_finding_removal():
 
 def test_removed_source_asset_empty_contribution():
     graph = make_graph()
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1"
-    )
+    action = sim.resolve_simulation_action(fake_action("a1", "ISOLATE_ASSET", target_asset_id="asset-app-01"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     # Simulation completes; removed source yields empty contribution, not omission.
     assert result.final.blast_affected_assets <= result.baseline.blast_affected_assets
@@ -519,15 +538,12 @@ def test_remediated_rank_behavior():
 
 def test_no_path_semantics():
     graph = nx.MultiDiGraph()
-    graph.add_node("a1", type="asset", criticality=5.0,
-                   is_entry_point=False, is_crown_jewel=False, network_zone="app_tier")
-    graph.add_node("v1", type="vulnerability", cvss_score=5.0,
-                   epss_score=None, known_exploited=False)
-    graph.add_node("f1", type="finding", asset_id="a1",
-                   vulnerability_id="v1", status="active")
-    action = sim.resolve_simulation_action(
-        fake_action("a1", "PATCH_VULNERABILITY", target_finding_id="f1"), "s1"
+    graph.add_node(
+        "a1", type="asset", criticality=5.0, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier"
     )
+    graph.add_node("v1", type="vulnerability", cvss_score=5.0, epss_score=None, known_exploited=False)
+    graph.add_node("f1", type="finding", asset_id="a1", vulnerability_id="v1", status="active")
+    action = sim.resolve_simulation_action(fake_action("a1", "PATCH_VULNERABILITY", target_finding_id="f1"), "s1")
     result = sim.run_simulation(graph, [action], scenario_id="s1")
     assert result.baseline.total_attack_paths == 0
     assert result.baseline.min_path_depth is None
@@ -559,6 +575,7 @@ def test_empty_actions_rejected():
 
 
 # ----------------------------- API tests -----------------------------
+
 
 def _create_action_row(action_id, action_type, scenario_id="basic_test_scenario", **targets):
     from backend.app.core.database import SessionLocal
@@ -662,9 +679,7 @@ def test_api_validation_failures():
 
 def test_api_unsupported_action():
     action_id = "test-sim-deferred-01"
-    _create_action_row(
-        action_id, "DISABLE_SERVICE", target_asset_id="asset-app-01"
-    )
+    _create_action_row(action_id, "DISABLE_SERVICE", target_asset_id="asset-app-01")
     try:
         response = client.post(
             "/api/scenarios/basic_test_scenario/simulate-remediation",
@@ -679,8 +694,10 @@ def test_api_unsupported_action():
 def test_api_cross_scenario_action():
     action_id = "test-sim-foreign-01"
     _create_action_row(
-        action_id, "PATCH_VULNERABILITY",
-        target_finding_id="finding-01", scenario_id="other-scenario",
+        action_id,
+        "PATCH_VULNERABILITY",
+        target_finding_id="finding-01",
+        scenario_id="other-scenario",
     )
     try:
         response = client.post(
@@ -703,25 +720,40 @@ def test_api_response_schema():
         assert response.status_code == 200
         data = response.json()
         required = {
-            "scenario_id", "action_ids", "applied_actions", "baseline",
-            "steps", "final", "overall_deltas", "overall_rank_comparison",
-            "remediated_findings", "max_depth_used", "max_paths_used",
-            "policy_snapshot", "simulated_at",
+            "scenario_id",
+            "action_ids",
+            "applied_actions",
+            "baseline",
+            "steps",
+            "final",
+            "overall_deltas",
+            "overall_rank_comparison",
+            "remediated_findings",
+            "max_depth_used",
+            "max_paths_used",
+            "policy_snapshot",
+            "simulated_at",
         }
         assert required.issubset(set(data.keys()))
         baseline_keys = {
-            "total_attack_paths", "crown_jewel_path_count",
-            "distinct_crown_jewels", "sum_path_feasibility",
-            "max_path_feasibility", "min_path_depth", "max_path_depth",
-            "blast_affected_assets", "blast_crown_jewels", "blast_max_depth",
-            "chokepoint_count", "max_chokepoint_score",
-            "sum_chokepoint_criticality", "prioritization_count",
+            "total_attack_paths",
+            "crown_jewel_path_count",
+            "distinct_crown_jewels",
+            "sum_path_feasibility",
+            "max_path_feasibility",
+            "min_path_depth",
+            "max_path_depth",
+            "blast_affected_assets",
+            "blast_crown_jewels",
+            "blast_max_depth",
+            "chokepoint_count",
+            "max_chokepoint_score",
+            "sum_chokepoint_criticality",
+            "prioritization_count",
             "max_operational_score",
         }
         assert baseline_keys.issubset(set(data["baseline"].keys()))
-        assert data["baseline"]["min_path_depth"] in (
-            None, data["baseline"]["min_path_depth"]
-        )
+        assert data["baseline"]["min_path_depth"] in (None, data["baseline"]["min_path_depth"])
     finally:
         _delete_action_row(action_id)
 
@@ -737,10 +769,7 @@ def test_api_isolated_finding_survives():
         assert response.status_code == 200
         data = response.json()
         assert "finding-02" not in data["remediated_findings"]
-        f2 = next(
-            r for r in data["overall_rank_comparison"]
-            if r["finding_id"] == "finding-02"
-        )
+        f2 = next(r for r in data["overall_rank_comparison"] if r["finding_id"] == "finding-02")
         assert f2["status"] == "ACTIVE"
         assert f2["simulated_rank"] is not None
     finally:

@@ -9,12 +9,13 @@ path-feasibility reduction (O2), then lower cost, then lexicographic order.
 There is no universal security score. O1/O2 are an explicit,
 policy-independent optimization objective declared for the MVP.
 """
+
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 import networkx as nx
 
@@ -28,7 +29,6 @@ from backend.app.analysis.remediation_simulation import (
     resolve_simulation_action,
     run_simulation,
 )
-
 
 MAX_CANDIDATE_ACTIONS = 12
 MAX_REPORTED_INFEASIBLE_SUBSETS = 100
@@ -53,26 +53,22 @@ class CandidateAction:
     validation_status: Literal["VALID"] = "VALID"
 
 
-def resolve_candidates(action_rows: Any, scenario_id: str) -> List[CandidateAction]:
+def resolve_candidates(action_rows: Any, scenario_id: str) -> list[CandidateAction]:
     """Resolve DB remediation rows into validated optimization candidates.
 
     Raises:
         ValueError: on unknown/unsupported/cross-scenario/mistargeted actions
             or invalid costs.
     """
-    candidates: List[CandidateAction] = []
+    candidates: list[CandidateAction] = []
     for row in action_rows:
         resolved = resolve_simulation_action(row, scenario_id)
         raw_cost = getattr(row, "estimated_cost", None)
         if raw_cost is None:
-            raise ValueError(
-                f"Remediation action '{resolved.action_id}' has no estimated_cost"
-            )
+            raise ValueError(f"Remediation action '{resolved.action_id}' has no estimated_cost")
         cost = float(raw_cost)
         if cost < 0.0:
-            raise ValueError(
-                f"Remediation action '{resolved.action_id}' has negative cost"
-            )
+            raise ValueError(f"Remediation action '{resolved.action_id}' has negative cost")
         candidates.append(
             CandidateAction(
                 action_id=resolved.action_id,
@@ -87,10 +83,10 @@ def resolve_candidates(action_rows: Any, scenario_id: str) -> List[CandidateActi
 
 @dataclass
 class InfeasibleSubsetRecord:
-    action_ids: List[str]
+    action_ids: list[str]
     reason: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"action_ids": list(self.action_ids), "reason": self.reason}
 
 
@@ -99,8 +95,8 @@ class OptimizationResult:
     scenario_id: str
     budget: float
     objective: str
-    candidates: List[CandidateAction]
-    selected_action_ids: List[str]
+    candidates: list[CandidateAction]
+    selected_action_ids: list[str]
     selected_total_cost: float
     within_budget: bool
     objective_o1: float
@@ -108,18 +104,18 @@ class OptimizationResult:
     selection_reason: str
     baseline: StateSummary
     selected: StateSummary
-    overall_deltas: List[Any]
-    overall_rank_comparison: List[Any]
-    remediated_findings: List[str]
+    overall_deltas: list[Any]
+    overall_rank_comparison: list[Any]
+    remediated_findings: list[str]
     evaluated_subset_count: int
     infeasible_subset_count: int
     over_budget_subset_count: int
-    reported_infeasible_subsets: List[InfeasibleSubsetRecord]
+    reported_infeasible_subsets: list[InfeasibleSubsetRecord]
     max_depth_used: int
     max_paths_used: int
     optimized_at: datetime
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "scenario_id": self.scenario_id,
             "budget": self.budget,
@@ -144,16 +140,12 @@ class OptimizationResult:
             "baseline": self.baseline.to_dict(),
             "selected": self.selected.to_dict(),
             "overall_deltas": [d.to_dict() for d in self.overall_deltas],
-            "overall_rank_comparison": [
-                r.to_dict() for r in self.overall_rank_comparison
-            ],
+            "overall_rank_comparison": [r.to_dict() for r in self.overall_rank_comparison],
             "remediated_findings": sorted(self.remediated_findings),
             "evaluated_subset_count": self.evaluated_subset_count,
             "infeasible_subset_count": self.infeasible_subset_count,
             "over_budget_subset_count": self.over_budget_subset_count,
-            "reported_infeasible_subsets": [
-                r.to_dict() for r in self.reported_infeasible_subsets
-            ],
+            "reported_infeasible_subsets": [r.to_dict() for r in self.reported_infeasible_subsets],
             "max_depth_used": self.max_depth_used,
             "max_paths_used": self.max_paths_used,
             "optimized_at": self.optimized_at,
@@ -161,26 +153,26 @@ class OptimizationResult:
 
 
 def _subset_cost(
-    subset: Tuple[CandidateAction, ...],
+    subset: tuple[CandidateAction, ...],
 ) -> float:
     return float(sum(c.estimated_cost for c in subset))
 
 
 def _objective_key(
-    o1: float, o2: float, cost: float, ids: Tuple[str, ...]
-) -> Tuple[float, float, float, Tuple[str, ...]]:
+    o1: float, o2: float, cost: float, ids: tuple[str, ...]
+) -> tuple[float, float, float, tuple[str, ...]]:
     # Compared with explicit lexicographic logic in optimize():
     # higher O1, higher O2, lower cost (stored negated), smaller id tuple.
     return (o1, o2, -cost, ids)
 
 
-def _tuple_is_smaller(a: Tuple[str, ...], b: Tuple[str, ...]) -> bool:
+def _tuple_is_smaller(a: tuple[str, ...], b: tuple[str, ...]) -> bool:
     return a < b
 
 
 def optimize(
     baseline_graph: nx.MultiDiGraph,
-    candidates: List[CandidateAction],
+    candidates: list[CandidateAction],
     *,
     budget: float,
     max_depth: int = 10,
@@ -211,14 +203,12 @@ def optimize(
 
     # Fixed blast-radius source population from BASELINE active findings,
     # mirroring run_simulation so the standalone baseline evaluation matches.
-    baseline_asset_context: Dict[str, Dict[str, Any]] = {}
-    baseline_finding_assets: List[str] = []
+    baseline_asset_context: dict[str, dict[str, Any]] = {}
+    baseline_finding_assets: list[str] = []
     for node_id, data in baseline_graph.nodes(data=True):
         if data.get("type") == "asset":
             baseline_asset_context[str(node_id)] = dict(data)
-        if data.get("type") == "finding" and str(
-            getattr(data.get("status"), "value", data.get("status"))
-        ) == "active":
+        if data.get("type") == "finding" and str(getattr(data.get("status"), "value", data.get("status"))) == "active":
             baseline_finding_assets.append(str(data.get("asset_id")))
     blast_sources = sorted(set(baseline_finding_assets))
 
@@ -237,11 +227,11 @@ def optimize(
     evaluated = 0
     infeasible = 0
     over_budget = 0
-    reported_infeasible: List[InfeasibleSubsetRecord] = []
+    reported_infeasible: list[InfeasibleSubsetRecord] = []
 
-    best_key: Optional[Tuple[float, float, float, Tuple[str, ...]]] = None
-    best_ids: Optional[Tuple[str, ...]] = None
-    best_result: Optional[SimulationResult] = None
+    best_key: tuple[float, float, float, tuple[str, ...]] | None = None
+    best_ids: tuple[str, ...] | None = None
+    best_result: SimulationResult | None = None
 
     ids = [c.action_id for c in ordered]
     for size in range(1, len(ids) + 1):
@@ -271,19 +261,11 @@ def optimize(
             except ValueError as exc:
                 infeasible += 1
                 if len(reported_infeasible) < MAX_REPORTED_INFEASIBLE_SUBSETS:
-                    reported_infeasible.append(
-                        InfeasibleSubsetRecord(
-                            action_ids=list(combo), reason=str(exc)
-                        )
-                    )
+                    reported_infeasible.append(InfeasibleSubsetRecord(action_ids=list(combo), reason=str(exc)))
                 continue
             evaluated += 1
-            o1 = float(result.baseline.crown_jewel_path_count) - float(
-                result.final.crown_jewel_path_count
-            )
-            o2 = float(result.baseline.sum_path_feasibility) - float(
-                result.final.sum_path_feasibility
-            )
+            o1 = float(result.baseline.crown_jewel_path_count) - float(result.final.crown_jewel_path_count)
+            o2 = float(result.baseline.sum_path_feasibility) - float(result.final.sum_path_feasibility)
             key = _objective_key(o1, o2, total, combo)
             if best_key is None:
                 better = True
@@ -291,11 +273,7 @@ def optimize(
                 better = (
                     key[0] > best_key[0]
                     or (key[0] == best_key[0] and key[1] > best_key[1])
-                    or (
-                        key[0] == best_key[0]
-                        and key[1] == best_key[1]
-                        and key[2] > best_key[2]
-                    )
+                    or (key[0] == best_key[0] and key[1] == best_key[1] and key[2] > best_key[2])
                     or (
                         key[0] == best_key[0]
                         and key[1] == best_key[1]
@@ -309,9 +287,7 @@ def optimize(
                 best_result = result
 
     # Empty selection when nothing evaluated or no positive improvement.
-    positive = (
-        best_key is not None and (best_key[0] > 0.0 or best_key[1] > 0.0)
-    )
+    positive = best_key is not None and (best_key[0] > 0.0 or best_key[1] > 0.0)
     if not positive:
         if baseline_summary.total_attack_paths == 0:
             reason = "zero_path_baseline"
@@ -345,7 +321,7 @@ def optimize(
             reported_infeasible_subsets=reported_infeasible,
             max_depth_used=max_depth,
             max_paths_used=max_paths,
-            optimized_at=datetime.now(timezone.utc),
+            optimized_at=datetime.now(UTC),
         )
 
     assert best_result is not None and best_ids is not None and best_key is not None
@@ -372,5 +348,5 @@ def optimize(
         reported_infeasible_subsets=reported_infeasible,
         max_depth_used=max_depth,
         max_paths_used=max_paths,
-        optimized_at=datetime.now(timezone.utc),
+        optimized_at=datetime.now(UTC),
     )

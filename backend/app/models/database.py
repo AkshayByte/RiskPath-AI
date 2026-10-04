@@ -1,12 +1,11 @@
 """
 SQLAlchemy database models for the canonical security graph.
 """
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
 from enum import Enum as PyEnum
-from typing import Optional
-from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, Enum
-)
+
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -14,8 +13,7 @@ Base = declarative_base()
 
 def utc_now():
     """Return timezone-aware UTC datetime."""
-    return datetime.now(timezone.utc)
-
+    return datetime.now(UTC)
 
 
 class AssetType(PyEnum):
@@ -44,11 +42,13 @@ class NetworkZone(PyEnum):
     DB_TIER = "db_tier"
     MANAGEMENT = "management"
 
+
 class VulnerabilitySeverity(PyEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
 
 class AttackVector(PyEnum):
     NETWORK = "NETWORK"
@@ -104,6 +104,7 @@ class RemediationActionType(PyEnum):
 
 class Asset(Base):
     """Represents a compute node, service, server, database, or identity store."""
+
     __tablename__ = "assets"
 
     id = Column(String, primary_key=True, index=True)
@@ -131,6 +132,7 @@ class Asset(Base):
 
 class Vulnerability(Base):
     """Represents a known software or configuration weakness (CVE)."""
+
     __tablename__ = "vulnerabilities"
 
     id = Column(String, primary_key=True, index=True)
@@ -156,6 +158,7 @@ class Vulnerability(Base):
 
 class Finding(Base):
     """Represents the specific presence/observation of a Vulnerability on a designated Asset."""
+
     __tablename__ = "findings"
 
     id = Column(String, primary_key=True, index=True)
@@ -180,6 +183,7 @@ class Finding(Base):
 
 class Edge(Base):
     """Defines how an attacker or traffic can move between nodes in the graph."""
+
     __tablename__ = "edges"
 
     id = Column(String, primary_key=True, index=True)
@@ -190,7 +194,9 @@ class Edge(Base):
     protocol = Column(String, nullable=True)  # e.g., TCP, HTTP, SSH, RDP, DATABASE
     traversal_cost = Column(Float, nullable=False)  # Computed cost/difficulty for pathfinding
     probability = Column(Float, nullable=False)  # Transition success likelihood 0.01 to 1.0
-    finding_id = Column(String, ForeignKey("findings.id"), nullable=True)  # Associated finding if edge represents an exploit
+    finding_id = Column(
+        String, ForeignKey("findings.id"), nullable=True
+    )  # Associated finding if edge represents an exploit
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utc_now, nullable=False)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
@@ -204,6 +210,7 @@ class Edge(Base):
 
 class RemediationAction(Base):
     """Defines a concrete security countermeasure that can be applied to the environment."""
+
     __tablename__ = "remediation_actions"
 
     id = Column(String, primary_key=True, index=True)
@@ -228,6 +235,7 @@ class RemediationAction(Base):
 
 class Scenario(Base):
     """An encapsulated network and threat topology for analysis and comparison."""
+
     __tablename__ = "scenarios"
 
     id = Column(String, primary_key=True, index=True)

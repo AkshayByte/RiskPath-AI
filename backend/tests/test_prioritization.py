@@ -5,6 +5,7 @@ The analysis tests use small in-memory graphs and monkeypatched upstream
 analysis functions so the prioritization layer can be tested independently.
 API tests exercise the real FastAPI application and the existing seeded DB.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -16,7 +17,6 @@ from fastapi.testclient import TestClient
 from backend.app.analysis import prioritization as pz
 from backend.app.analysis.path_analysis import AttackPath
 from backend.app.main import app
-
 
 client = TestClient(app)
 
@@ -237,15 +237,42 @@ def test_profile_finding_vs_asset_chokepoint(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_ordering_crown_jewel_first() -> None:
     profile_a = pz.PriorityProfile(
-        finding_id="a", asset_id="asset-a", vulnerability_id="v-a",
-        cvss_normalized=0.1, epss_score=0.1, epss_available=True, known_exploited=False, severity_category="LOW",
-        path_participation_count=1, max_path_feasibility=1.0, max_path_feasibility_normalized=0.5, avg_path_feasibility=1.0,
-        crown_jewel_reachable=True, unique_entry_points=1, unique_crown_jewels=1, min_path_depth=1, max_path_depth=1,
-        asset_criticality_normalized=0.1, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
-        blast_radius_asset_count=0, blast_radius_crown_jewels=0, blast_radius_max_depth=0, blast_radius_min_cost=0.0, blast_radius_max_prob=0.0,
-        finding_chokepoint_score=0.0, finding_path_feasibility_criticality=0.0, finding_path_count=1,
-        asset_chokepoint_score=0.0, asset_path_feasibility_criticality=0.0, asset_path_count=0,
-        remediation_cost=0.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        finding_id="a",
+        asset_id="asset-a",
+        vulnerability_id="v-a",
+        cvss_normalized=0.1,
+        epss_score=0.1,
+        epss_available=True,
+        known_exploited=False,
+        severity_category="LOW",
+        path_participation_count=1,
+        max_path_feasibility=1.0,
+        max_path_feasibility_normalized=0.5,
+        avg_path_feasibility=1.0,
+        crown_jewel_reachable=True,
+        unique_entry_points=1,
+        unique_crown_jewels=1,
+        min_path_depth=1,
+        max_path_depth=1,
+        asset_criticality_normalized=0.1,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
+        blast_radius_asset_count=0,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=0,
+        blast_radius_min_cost=0.0,
+        blast_radius_max_prob=0.0,
+        finding_chokepoint_score=0.0,
+        finding_path_feasibility_criticality=0.0,
+        finding_path_count=1,
+        asset_chokepoint_score=0.0,
+        asset_path_feasibility_criticality=0.0,
+        asset_path_count=0,
+        remediation_cost=0.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     profile_b = profile_a.__class__(**{**profile_a.__dict__, "finding_id": "b", "crown_jewel_reachable": False})
     ka = pz.compute_ordering_keys(profile_a, pz.DEFAULT_POLICY)
@@ -255,32 +282,88 @@ def test_ordering_crown_jewel_first() -> None:
 
 def test_ordering_kev_tier() -> None:
     base = dict(
-        finding_id="a", asset_id="asset-a", vulnerability_id="v-a",
-        cvss_normalized=0.5, epss_score=0.5, epss_available=True, severity_category="MEDIUM",
-        path_participation_count=0, max_path_feasibility=0.0, max_path_feasibility_normalized=0.0, avg_path_feasibility=0.0,
-        crown_jewel_reachable=False, unique_entry_points=0, unique_crown_jewels=0, min_path_depth=0, max_path_depth=0,
-        asset_criticality_normalized=0.5, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
-        blast_radius_asset_count=0, blast_radius_crown_jewels=0, blast_radius_max_depth=0, blast_radius_min_cost=0.0, blast_radius_max_prob=0.0,
-        finding_chokepoint_score=0.0, finding_path_feasibility_criticality=0.0, finding_path_count=0,
-        asset_chokepoint_score=0.0, asset_path_feasibility_criticality=0.0, asset_path_count=0,
-        remediation_cost=0.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        finding_id="a",
+        asset_id="asset-a",
+        vulnerability_id="v-a",
+        cvss_normalized=0.5,
+        epss_score=0.5,
+        epss_available=True,
+        severity_category="MEDIUM",
+        path_participation_count=0,
+        max_path_feasibility=0.0,
+        max_path_feasibility_normalized=0.0,
+        avg_path_feasibility=0.0,
+        crown_jewel_reachable=False,
+        unique_entry_points=0,
+        unique_crown_jewels=0,
+        min_path_depth=0,
+        max_path_depth=0,
+        asset_criticality_normalized=0.5,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
+        blast_radius_asset_count=0,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=0,
+        blast_radius_min_cost=0.0,
+        blast_radius_max_prob=0.0,
+        finding_chokepoint_score=0.0,
+        finding_path_feasibility_criticality=0.0,
+        finding_path_count=0,
+        asset_chokepoint_score=0.0,
+        asset_path_feasibility_criticality=0.0,
+        asset_path_count=0,
+        remediation_cost=0.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     non_kev = pz.PriorityProfile(**base, known_exploited=False)
     kev = pz.PriorityProfile(**{**base, "known_exploited": True, "finding_id": "b"})
-    assert pz.compute_ordering_keys(kev, pz.DEFAULT_POLICY).sort_key() < pz.compute_ordering_keys(non_kev, pz.DEFAULT_POLICY).sort_key()
+    assert (
+        pz.compute_ordering_keys(kev, pz.DEFAULT_POLICY).sort_key()
+        < pz.compute_ordering_keys(non_kev, pz.DEFAULT_POLICY).sort_key()
+    )
 
 
 def test_ordering_policy_flags_control_tiers() -> None:
     base = dict(
-        finding_id="a", asset_id="asset-a", vulnerability_id="v-a",
-        cvss_normalized=0.2, epss_score=0.2, epss_available=True, known_exploited=False, severity_category="LOW",
-        path_participation_count=0, max_path_feasibility=0.0, max_path_feasibility_normalized=0.0, avg_path_feasibility=0.0,
-        crown_jewel_reachable=True, unique_entry_points=True, unique_crown_jewels=1, min_path_depth=1, max_path_depth=1,
-        asset_criticality_normalized=0.2, is_entry_point=True, is_crown_jewel=False, network_zone="dmz",
-        blast_radius_asset_count=0, blast_radius_crown_jewels=0, blast_radius_max_depth=0, blast_radius_min_cost=0.0, blast_radius_max_prob=0.0,
-        finding_chokepoint_score=0.0, finding_path_feasibility_criticality=0.0, finding_path_count=0,
-        asset_chokepoint_score=0.0, asset_path_feasibility_criticality=0.0, asset_path_count=0,
-        remediation_cost=0.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        finding_id="a",
+        asset_id="asset-a",
+        vulnerability_id="v-a",
+        cvss_normalized=0.2,
+        epss_score=0.2,
+        epss_available=True,
+        known_exploited=False,
+        severity_category="LOW",
+        path_participation_count=0,
+        max_path_feasibility=0.0,
+        max_path_feasibility_normalized=0.0,
+        avg_path_feasibility=0.0,
+        crown_jewel_reachable=True,
+        unique_entry_points=True,
+        unique_crown_jewels=1,
+        min_path_depth=1,
+        max_path_depth=1,
+        asset_criticality_normalized=0.2,
+        is_entry_point=True,
+        is_crown_jewel=False,
+        network_zone="dmz",
+        blast_radius_asset_count=0,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=0,
+        blast_radius_min_cost=0.0,
+        blast_radius_max_prob=0.0,
+        finding_chokepoint_score=0.0,
+        finding_path_feasibility_criticality=0.0,
+        finding_path_count=0,
+        asset_chokepoint_score=0.0,
+        asset_path_feasibility_criticality=0.0,
+        asset_path_count=0,
+        remediation_cost=0.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     profile = pz.PriorityProfile(**base)
     disabled = pz.OrderingPolicy(crown_jewel_first=False, entry_point_first=False, kev_tier=False)
@@ -296,15 +379,41 @@ def test_ordering_negative_weights_rejected() -> None:
 
 def test_ordering_same_asset_final_finding_id_tiebreaker() -> None:
     base = dict(
-        asset_id="same-asset", vulnerability_id="v-a", cvss_normalized=0.5, epss_score=0.5,
-        epss_available=True, known_exploited=False, severity_category="MEDIUM",
-        path_participation_count=0, max_path_feasibility=0.0, max_path_feasibility_normalized=0.0, avg_path_feasibility=0.0,
-        crown_jewel_reachable=False, unique_entry_points=0, unique_crown_jewels=0, min_path_depth=0, max_path_depth=0,
-        asset_criticality_normalized=0.5, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
-        blast_radius_asset_count=0, blast_radius_crown_jewels=0, blast_radius_max_depth=0, blast_radius_min_cost=0.0, blast_radius_max_prob=0.0,
-        finding_chokepoint_score=0.0, finding_path_feasibility_criticality=0.0, finding_path_count=0,
-        asset_chokepoint_score=0.0, asset_path_feasibility_criticality=0.0, asset_path_count=0,
-        remediation_cost=0.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        asset_id="same-asset",
+        vulnerability_id="v-a",
+        cvss_normalized=0.5,
+        epss_score=0.5,
+        epss_available=True,
+        known_exploited=False,
+        severity_category="MEDIUM",
+        path_participation_count=0,
+        max_path_feasibility=0.0,
+        max_path_feasibility_normalized=0.0,
+        avg_path_feasibility=0.0,
+        crown_jewel_reachable=False,
+        unique_entry_points=0,
+        unique_crown_jewels=0,
+        min_path_depth=0,
+        max_path_depth=0,
+        asset_criticality_normalized=0.5,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
+        blast_radius_asset_count=0,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=0,
+        blast_radius_min_cost=0.0,
+        blast_radius_max_prob=0.0,
+        finding_chokepoint_score=0.0,
+        finding_path_feasibility_criticality=0.0,
+        finding_path_count=0,
+        asset_chokepoint_score=0.0,
+        asset_path_feasibility_criticality=0.0,
+        asset_path_count=0,
+        remediation_cost=0.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     a = pz.PriorityProfile(finding_id="finding-a", **base)
     b = pz.PriorityProfile(finding_id="finding-b", **base)
@@ -314,34 +423,86 @@ def test_ordering_same_asset_final_finding_id_tiebreaker() -> None:
 
 def test_ordering_operational_score_single_source() -> None:
     base = dict(
-        finding_id="f", asset_id="a", vulnerability_id="v",
-        cvss_normalized=0.7, epss_score=0.6, epss_available=True, known_exploited=False, severity_category="HIGH",
-        path_participation_count=1, max_path_feasibility=2.0, max_path_feasibility_normalized=2.0 / 3.0, avg_path_feasibility=2.0,
-        crown_jewel_reachable=False, unique_entry_points=1, unique_crown_jewels=0, min_path_depth=1, max_path_depth=2,
-        asset_criticality_normalized=0.5, is_entry_point=True, is_crown_jewel=False, network_zone="dmz",
-        blast_radius_asset_count=1, blast_radius_crown_jewels=0, blast_radius_max_depth=1, blast_radius_min_cost=2.0, blast_radius_max_prob=0.5,
-        finding_chokepoint_score=0.4, finding_path_feasibility_criticality=0.4, finding_path_count=1,
-        asset_chokepoint_score=0.2, asset_path_feasibility_criticality=0.2, asset_path_count=1,
-        remediation_cost=100.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        finding_id="f",
+        asset_id="a",
+        vulnerability_id="v",
+        cvss_normalized=0.7,
+        epss_score=0.6,
+        epss_available=True,
+        known_exploited=False,
+        severity_category="HIGH",
+        path_participation_count=1,
+        max_path_feasibility=2.0,
+        max_path_feasibility_normalized=2.0 / 3.0,
+        avg_path_feasibility=2.0,
+        crown_jewel_reachable=False,
+        unique_entry_points=1,
+        unique_crown_jewels=0,
+        min_path_depth=1,
+        max_path_depth=2,
+        asset_criticality_normalized=0.5,
+        is_entry_point=True,
+        is_crown_jewel=False,
+        network_zone="dmz",
+        blast_radius_asset_count=1,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=1,
+        blast_radius_min_cost=2.0,
+        blast_radius_max_prob=0.5,
+        finding_chokepoint_score=0.4,
+        finding_path_feasibility_criticality=0.4,
+        finding_path_count=1,
+        asset_chokepoint_score=0.2,
+        asset_path_feasibility_criticality=0.2,
+        asset_path_count=1,
+        remediation_cost=100.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     profile = pz.PriorityProfile(**base)
     keys = pz.compute_ordering_keys(profile, pz.DEFAULT_POLICY)
-    assert keys.composite_score == pytest.approx(
-        0.4 + (2.0 / 3.0) + 0.7 + (0.6 * 0.5) + (0.5 * 0.5)
-    )
+    assert keys.composite_score == pytest.approx(0.4 + (2.0 / 3.0) + 0.7 + (0.6 * 0.5) + (0.5 * 0.5))
 
 
 def test_weight_sensitivity() -> None:
     base = dict(
-        finding_id="f", asset_id="a", vulnerability_id="v",
-        cvss_normalized=0.2, epss_score=0.2, epss_available=True, known_exploited=False, severity_category="LOW",
-        path_participation_count=1, max_path_feasibility=1.0, max_path_feasibility_normalized=0.5, avg_path_feasibility=1.0,
-        crown_jewel_reachable=False, unique_entry_points=0, unique_crown_jewels=0, min_path_depth=1, max_path_depth=1,
-        asset_criticality_normalized=0.2, is_entry_point=False, is_crown_jewel=False, network_zone="app_tier",
-        blast_radius_asset_count=0, blast_radius_crown_jewels=0, blast_radius_max_depth=0, blast_radius_min_cost=0.0, blast_radius_max_prob=0.0,
-        finding_chokepoint_score=0.2, finding_path_feasibility_criticality=0.2, finding_path_count=1,
-        asset_chokepoint_score=0.0, asset_path_feasibility_criticality=0.0, asset_path_count=0,
-        remediation_cost=0.0, implementation_complexity=None, downtime_required=False, action_type=None,
+        finding_id="f",
+        asset_id="a",
+        vulnerability_id="v",
+        cvss_normalized=0.2,
+        epss_score=0.2,
+        epss_available=True,
+        known_exploited=False,
+        severity_category="LOW",
+        path_participation_count=1,
+        max_path_feasibility=1.0,
+        max_path_feasibility_normalized=0.5,
+        avg_path_feasibility=1.0,
+        crown_jewel_reachable=False,
+        unique_entry_points=0,
+        unique_crown_jewels=0,
+        min_path_depth=1,
+        max_path_depth=1,
+        asset_criticality_normalized=0.2,
+        is_entry_point=False,
+        is_crown_jewel=False,
+        network_zone="app_tier",
+        blast_radius_asset_count=0,
+        blast_radius_crown_jewels=0,
+        blast_radius_max_depth=0,
+        blast_radius_min_cost=0.0,
+        blast_radius_max_prob=0.0,
+        finding_chokepoint_score=0.2,
+        finding_path_feasibility_criticality=0.2,
+        finding_path_count=1,
+        asset_chokepoint_score=0.0,
+        asset_path_feasibility_criticality=0.0,
+        asset_path_count=0,
+        remediation_cost=0.0,
+        implementation_complexity=None,
+        downtime_required=False,
+        action_type=None,
     )
     profile = pz.PriorityProfile(**base)
     low = pz.compute_ordering_keys(profile, pz.OrderingPolicy(chokepoint_weight=0.5)).composite_score
@@ -490,7 +651,5 @@ def test_prioritization_api_response_structure() -> None:
         assert "finding_id" in profile
         assert 0.0 <= profile["cvss_normalized"] <= 1.0
         assert 0.0 <= profile["max_path_feasibility_normalized"] < 1.0
-        assert profile["severity_category"] in {
-            "NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"
-        }
+        assert profile["severity_category"] in {"NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"}
         assert "evidence" in item

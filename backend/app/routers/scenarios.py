@@ -1,5 +1,5 @@
 """Scenario management router."""
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ async def create_scenario(scenario: ScenarioCreate, db: Session = Depends(get_db
     return db_scenario
 
 
-@router.get("", response_model=List[ScenarioResponse])
+@router.get("", response_model=list[ScenarioResponse])
 async def list_scenarios(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """List all scenarios."""
     scenarios = db.query(Scenario).offset(skip).limit(limit).all()
@@ -42,11 +42,11 @@ async def update_scenario(scenario_id: str, scenario: ScenarioUpdate, db: Sessio
     db_scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if db_scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     update_data = scenario.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_scenario, field, value)
-    
+
     db.commit()
     db.refresh(db_scenario)
     return db_scenario
@@ -58,7 +58,7 @@ async def delete_scenario(scenario_id: str, db: Session = Depends(get_db)):
     scenario = db.query(Scenario).filter(Scenario.id == scenario_id).first()
     if scenario is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     db.delete(scenario)
     db.commit()
     return None
