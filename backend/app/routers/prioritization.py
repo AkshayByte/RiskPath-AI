@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}/prioritization", tags=["
 
 
 @router.get("", response_model=PrioritizationResponse)
-async def get_prioritization(
+def get_prioritization(
     scenario_id: str,
     max_depth: int = 10,
     max_paths: int = 100,

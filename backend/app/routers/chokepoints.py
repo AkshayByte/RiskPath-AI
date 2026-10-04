@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}/chokepoints", tags=["Cho
 
 
 @router.get("", response_model=ChokepointResponse)
-async def get_chokepoints(
+def get_chokepoints(
     scenario_id: str,
     max_depth: int = 10,
     max_paths: int = 100,

@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}/benchmark", tags=["Bench
 
 
 @router.get("")
-async def get_scenario_benchmark(
+def get_scenario_benchmark(
     scenario_id: str,
     budget: float = 10.0,
     db: Session = Depends(get_db),

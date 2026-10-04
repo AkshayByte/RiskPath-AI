@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}", tags=["Optimization"])
     "/optimize-remediation",
     response_model=OptimizationResponse,
 )
-async def optimize_remediation(
+def optimize_remediation(
     scenario_id: str,
     request: OptimizationRequest,
     db: Session = Depends(get_db),

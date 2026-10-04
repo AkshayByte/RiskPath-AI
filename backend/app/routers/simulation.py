@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}", tags=["Simulation"])
     "/simulate-remediation",
     response_model=SimulationResponse,
 )
-async def simulate_remediation(
+def simulate_remediation(
     scenario_id: str,
     request: SimulationRequest,
     db: Session = Depends(get_db),

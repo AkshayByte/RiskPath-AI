@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}/attack-paths", tags=["At
 
 
 @router.get("")
-async def get_attack_paths(
+def get_attack_paths(
     scenario_id: str,
     path_mode: Literal["all", "shortest", "cheapest"] = "all",
     max_depth: int = 10,

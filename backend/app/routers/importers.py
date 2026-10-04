@@ -10,8 +10,12 @@ router = APIRouter(prefix="/api/scenarios", tags=["Scanner Importers"])
 
 
 class RawImportRequest(BaseModel):
-    content: str = Field(..., description="Raw text content of the scan file (JSON or CSV)")
-    scenario_name: Optional[str] = Field(None, description="Optional name for created scenario")
+    content: str = Field(
+        ...,
+        max_length=10_000_000,
+        description="Raw text content of the scan file (JSON or CSV, up to 10MB)"
+    )
+    scenario_name: Optional[str] = Field(None, max_length=200, description="Optional name for created scenario")
 
 
 @router.post("/{scenario_id}/import/trivy", response_model=Dict[str, Any])

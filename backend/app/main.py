@@ -1,50 +1,50 @@
 """
 FastAPI application entrypoint for RiskPath AI - Context-Aware Cybersecurity Decision Support System.
 """
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.core.config import settings
 from backend.app.core.database import engine
 from backend.app.models.database import Base
 from backend.data.seeds.seed_data import create_seed_data
 
-from backend.app.routers.health import router as health_router
-from backend.app.routers.scenarios import router as scenarios_router
-from backend.app.routers.entities import router as entities_router
-from backend.app.routers.graph import router as graph_router
-from backend.app.routers.paths import router as paths_router
-from backend.app.routers.blast_radius import router as blast_radius_router
-from backend.app.routers.chokepoints import router as chokepoints_router
-from backend.app.routers.prioritization import router as prioritization_router
-from backend.app.routers.simulation import router as simulation_router
-from backend.app.routers.optimization import router as optimization_router
-from backend.app.routers.explanation import router as explanation_router
-from backend.app.routers.benchmark import router as benchmark_router
-from backend.app.routers.generator import router as generator_router
-from backend.app.routers.importers import router as importers_router
+from backend.app.routers import (
+    health,
+    scenarios,
+    entities,
+    graph,
+    paths,
+    blast_radius,
+    chokepoints,
+    prioritization,
+    simulation,
+    optimization,
+    explanation,
+    benchmark,
+    generator,
+    importers,
+)
 
-
-# Create database tables and ensure seed data on import and startup
-Base.metadata.create_all(bind=engine)
-try:
-    create_seed_data()
-except Exception as e:
-    pass
+logger = logging.getLogger("riskpath")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan context manager:
-    - Auto-creates database schema on startup
-    - Idempotently ensures seed data is present (Docker & local dev parity)
+    - Auto-creates database schema on server startup
+    - Conditionally populates demo seed data if SEED_DEMO_DATA=True
     """
     Base.metadata.create_all(bind=engine)
-    try:
-        create_seed_data()
-    except Exception as e:
-        print(f"[RiskPath AI] Startup seed notice: {e}")
+    if settings.SEED_DEMO_DATA:
+        try:
+            create_seed_data()
+        except Exception:
+            logger.exception("Demo seed data initialization notice; continuing without it")
     yield
 
 
@@ -59,27 +59,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Configure CORS for local development and containerized setups
+# Configure CORS with strict explicit origins and disabled credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler returning clean JSON error responses."""
+    logger.exception(f"Unhandled exception on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred while processing the request."}
+    )
+
+
 # Mount all modular routers
-app.include_router(health_router)
-app.include_router(scenarios_router)
-app.include_router(entities_router)
-app.include_router(graph_router)
-app.include_router(paths_router)
-app.include_router(blast_radius_router)
-app.include_router(chokepoints_router)
-app.include_router(prioritization_router)
-app.include_router(simulation_router)
-app.include_router(optimization_router)
-app.include_router(explanation_router)
-app.include_router(benchmark_router)
-app.include_router(generator_router)
-app.include_router(importers_router)
+for module in (
+    health,
+    scenarios,
+    entities,
+    graph,
+    paths,
+    blast_radius,
+    chokepoints,
+    prioritization,
+    simulation,
+    optimization,
+    explanation,
+    benchmark,
+    generator,
+    importers,
+):
+    app.include_router(module.router)

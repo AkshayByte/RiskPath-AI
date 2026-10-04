@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/scenarios/{scenario_id}/blast-radius", tags=["Bl
 
 
 @router.get("/{source_asset_id}", response_model=BlastRadiusResponse)
-async def get_blast_radius(
+def get_blast_radius(
     scenario_id: str,
     source_asset_id: str,
     max_depth: int = 10,
